@@ -2,12 +2,12 @@
 page_title: "credible_connection Resource - credible"
 subcategory: ""
 description: |-
-  Manages a database connection within a Credible project. Supports PostgreSQL, BigQuery, Snowflake, Trino, MySQL, DuckDB, and MotherDuck.
+  Manages a database connection within a Credible environment. Supports PostgreSQL, BigQuery, Snowflake, Trino, MySQL, DuckDB, and MotherDuck.
 ---
 
 # credible_connection (Resource)
 
-Manages a database connection within a Credible project. Exactly one connection type block must be specified, matching the `type` attribute.
+Manages a database connection within a Credible environment. Exactly one connection type block must be specified, matching the `type` attribute.
 
 Supported connection types: `postgres`, `bigquery`, `snowflake`, `trino`, `mysql`, `duckdb`, `motherduck`.
 
@@ -19,7 +19,7 @@ Supported connection types: `postgres`, `bigquery`, `snowflake`, `trino`, `mysql
 
 ```hcl
 resource "credible_connection" "warehouse" {
-  project = credible_project.analytics.name
+  environment = credible_environment.analytics.name
   name    = "main-warehouse"
   type    = "bigquery"
 
@@ -36,7 +36,7 @@ resource "credible_connection" "warehouse" {
 
 ```hcl
 resource "credible_connection" "app_db" {
-  project = "analytics"
+  environment = "analytics"
   name    = "app-database"
   type    = "postgres"
 
@@ -56,7 +56,7 @@ resource "credible_connection" "app_db" {
 
 ```hcl
 resource "credible_connection" "snowflake" {
-  project = "analytics"
+  environment = "analytics"
   name    = "snowflake-warehouse"
   type    = "snowflake"
 
@@ -76,7 +76,7 @@ resource "credible_connection" "snowflake" {
 
 ```hcl
 resource "credible_connection" "mysql" {
-  project = "analytics"
+  environment = "analytics"
   name    = "mysql-db"
   type    = "mysql"
 
@@ -94,7 +94,7 @@ resource "credible_connection" "mysql" {
 
 ```hcl
 resource "credible_connection" "trino" {
-  project = "analytics"
+  environment = "analytics"
   name    = "trino-cluster"
   type    = "trino"
 
@@ -112,7 +112,7 @@ resource "credible_connection" "trino" {
 
 ```hcl
 resource "credible_connection" "duckdb" {
-  project = "analytics"
+  environment = "analytics"
   name    = "local-duckdb"
   type    = "duckdb"
 
@@ -129,7 +129,7 @@ resource "credible_connection" "duckdb" {
 
 ```hcl
 resource "credible_connection" "warehouse" {
-  project = "analytics"
+  environment = "analytics"
   name    = "main-warehouse"
   type    = "bigquery"
 
@@ -140,7 +140,7 @@ resource "credible_connection" "warehouse" {
 }
 ```
 
-**Step 2:** Import using `<organization>/<project>/<connection>`:
+**Step 2:** Import using `<organization>/<environment>/<connection>`:
 
 ```shell
 terraform import credible_connection.warehouse my-org/analytics/main-warehouse
@@ -152,8 +152,8 @@ terraform import credible_connection.warehouse my-org/analytics/main-warehouse
 
 ### Required
 
-- `project` (String) — Project name. **Immutable** — changing forces destroy and recreate.
-- `name` (String) — Unique connection name within the project. **Immutable**.
+- `environment` (String) — Environment name. **Immutable** — changing forces destroy and recreate.
+- `name` (String) — Unique connection name within the environment. **Immutable**.
 - `type` (String) — Connection type. One of: `postgres`, `bigquery`, `snowflake`, `trino`, `mysql`, `duckdb`, `motherduck`. **Immutable**.
 
 ### Optional
@@ -244,7 +244,7 @@ Exactly one of the following blocks must be specified, matching the `type` attri
 
 ## Import
 
-Import format: `<organization>/<project>/<connection>`
+Import format: `<organization>/<environment>/<connection>`
 
 ```shell
 terraform import credible_connection.warehouse my-org/analytics/main-warehouse

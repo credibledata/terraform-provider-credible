@@ -9,7 +9,7 @@ import (
 
 func TestAccPackage_basic(t *testing.T) {
 	orgName := randomName("test-org-tf")
-	projName := randomName("test-proj-tf")
+	envName := randomName("test-env-tf")
 	pkgName := randomName("test-pkg-tf")
 
 	resource.Test(t, resource.TestCase{
@@ -17,11 +17,11 @@ func TestAccPackage_basic(t *testing.T) {
 		PreCheck:                 func() { testAccPreCheck(t) },
 		Steps: []resource.TestStep{
 			{
-				Config: testAccPackageConfig(orgName, projName, pkgName, "A test package"),
+				Config: testAccPackageConfig(orgName, envName, pkgName, "A test package"),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("credible_package.test", "name", pkgName),
 					resource.TestCheckResourceAttr("credible_package.test", "organization", orgName),
-					resource.TestCheckResourceAttr("credible_package.test", "project", projName),
+					resource.TestCheckResourceAttr("credible_package.test", "environment", envName),
 					resource.TestCheckResourceAttr("credible_package.test", "description", "A test package"),
 					resource.TestCheckResourceAttr("credible_package.test", "deletion_protection", "false"),
 					resource.TestCheckResourceAttrSet("credible_package.test", "created_at"),
@@ -32,7 +32,7 @@ func TestAccPackage_basic(t *testing.T) {
 			{
 				ResourceName:            "credible_package.test",
 				ImportState:             true,
-				ImportStateId:           fmt.Sprintf("%s/%s/%s", orgName, projName, pkgName),
+				ImportStateId:           fmt.Sprintf("%s/%s/%s", orgName, envName, pkgName),
 				ImportStateVerify:       true,
 				ImportStateVerifyIgnore: []string{"deletion_protection"},
 			},
@@ -42,7 +42,7 @@ func TestAccPackage_basic(t *testing.T) {
 
 func TestAccPackage_updateDescription(t *testing.T) {
 	orgName := randomName("test-org-tf")
-	projName := randomName("test-proj-tf")
+	envName := randomName("test-env-tf")
 	pkgName := randomName("test-pkg-tf")
 
 	resource.Test(t, resource.TestCase{
@@ -50,13 +50,13 @@ func TestAccPackage_updateDescription(t *testing.T) {
 		PreCheck:                 func() { testAccPreCheck(t) },
 		Steps: []resource.TestStep{
 			{
-				Config: testAccPackageConfig(orgName, projName, pkgName, "Original"),
+				Config: testAccPackageConfig(orgName, envName, pkgName, "Original"),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("credible_package.test", "description", "Original"),
 				),
 			},
 			{
-				Config: testAccPackageConfig(orgName, projName, pkgName, "Updated"),
+				Config: testAccPackageConfig(orgName, envName, pkgName, "Updated"),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("credible_package.test", "description", "Updated"),
 				),
@@ -65,14 +65,14 @@ func TestAccPackage_updateDescription(t *testing.T) {
 	})
 }
 
-func testAccPackageConfig(orgName, projName, pkgName, description string) string {
+func testAccPackageConfig(orgName, envName, pkgName, description string) string {
 	return providerConfig() + fmt.Sprintf(`
 resource "credible_organization" "test" {
   name                = %q
   deletion_protection = false
 }
 
-resource "credible_project" "test" {
+resource "credible_environment" "test" {
   organization        = credible_organization.test.name
   name                = %q
   deletion_protection = false
@@ -81,10 +81,10 @@ resource "credible_project" "test" {
 
 resource "credible_package" "test" {
   organization        = credible_organization.test.name
-  project             = credible_project.test.name
+  environment         = credible_environment.test.name
   name                = %q
   description         = %q
   deletion_protection = false
 }
-`, orgName, projName, pkgName, description)
+`, orgName, envName, pkgName, description)
 }

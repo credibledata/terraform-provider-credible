@@ -7,28 +7,27 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
 
-func TestAccProject_basic(t *testing.T) {
+func TestAccEnvironment_basic(t *testing.T) {
 	orgName := randomName("test-org-tf")
-	projName := randomName("test-proj-tf")
+	envName := randomName("test-env-tf")
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		PreCheck:                 func() { testAccPreCheck(t) },
 		Steps: []resource.TestStep{
 			{
-				Config: testAccProjectConfig(orgName, projName),
+				Config: testAccEnvironmentConfig(orgName, envName),
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("credible_project.test", "name", projName),
-					resource.TestCheckResourceAttr("credible_project.test", "organization", orgName),
-					resource.TestCheckResourceAttrSet("credible_project.test", "created_at"),
-					resource.TestCheckResourceAttrSet("credible_project.test", "updated_at"),
+					resource.TestCheckResourceAttr("credible_environment.test", "name", envName),
+					resource.TestCheckResourceAttr("credible_environment.test", "organization", orgName),
+					resource.TestCheckResourceAttrSet("credible_environment.test", "created_at"),
+					resource.TestCheckResourceAttrSet("credible_environment.test", "updated_at"),
 				),
 			},
-			// Import
 			{
-				ResourceName:            "credible_project.test",
+				ResourceName:            "credible_environment.test",
 				ImportState:             true,
-				ImportStateId:           fmt.Sprintf("%s/%s", orgName, projName),
+				ImportStateId:           fmt.Sprintf("%s/%s", orgName, envName),
 				ImportStateVerify:       true,
 				ImportStateVerifyIgnore: []string{"deletion_protection", "force_cascade"},
 			},
@@ -36,59 +35,59 @@ func TestAccProject_basic(t *testing.T) {
 	})
 }
 
-func TestAccProject_updateReadme(t *testing.T) {
+func TestAccEnvironment_updateReadme(t *testing.T) {
 	orgName := randomName("test-org-tf")
-	projName := randomName("test-proj-tf")
+	envName := randomName("test-env-tf")
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		PreCheck:                 func() { testAccPreCheck(t) },
 		Steps: []resource.TestStep{
 			{
-				Config: testAccProjectConfigWithReadme(orgName, projName, "# Original"),
+				Config: testAccEnvironmentConfigWithReadme(orgName, envName, "# Original"),
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("credible_project.test", "readme", "# Original"),
+					resource.TestCheckResourceAttr("credible_environment.test", "readme", "# Original"),
 				),
 			},
 			{
-				Config: testAccProjectConfigWithReadme(orgName, projName, "# Updated"),
+				Config: testAccEnvironmentConfigWithReadme(orgName, envName, "# Updated"),
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("credible_project.test", "readme", "# Updated"),
+					resource.TestCheckResourceAttr("credible_environment.test", "readme", "# Updated"),
 				),
 			},
 		},
 	})
 }
 
-func testAccProjectConfig(orgName, projName string) string {
+func testAccEnvironmentConfig(orgName, envName string) string {
 	return providerConfig() + fmt.Sprintf(`
 resource "credible_organization" "test" {
   name                = %q
   deletion_protection = false
 }
 
-resource "credible_project" "test" {
+resource "credible_environment" "test" {
   organization        = credible_organization.test.name
   name                = %q
   deletion_protection = false
   force_cascade       = true
 }
-`, orgName, projName)
+`, orgName, envName)
 }
 
-func testAccProjectConfigWithReadme(orgName, projName, readme string) string {
+func testAccEnvironmentConfigWithReadme(orgName, envName, readme string) string {
 	return providerConfig() + fmt.Sprintf(`
 resource "credible_organization" "test" {
   name                = %q
   deletion_protection = false
 }
 
-resource "credible_project" "test" {
+resource "credible_environment" "test" {
   organization        = credible_organization.test.name
   name                = %q
   readme              = %q
   deletion_protection = false
   force_cascade       = true
 }
-`, orgName, projName, readme)
+`, orgName, envName, readme)
 }

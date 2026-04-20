@@ -34,8 +34,8 @@ resource "credible_group_member" "alice" {
   status        = "admin"
 }
 
-resource "credible_project_permission" "data_eng_access" {
-  project       = "analytics"
+resource "credible_environment_permission" "data_eng_access" {
+  environment   = "analytics"
   user_group_id = "group:data-engineering"
   permission    = "modeler"
 }

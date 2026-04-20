@@ -24,7 +24,7 @@ type PackageResource struct {
 
 type PackageResourceModel struct {
 	Organization       types.String `tfsdk:"organization"`
-	Project            types.String `tfsdk:"project"`
+	Environment        types.String `tfsdk:"environment"`
 	Name               types.String `tfsdk:"name"`
 	Description        types.String `tfsdk:"description"`
 	DeletionProtection types.Bool   `tfsdk:"deletion_protection"`
@@ -43,7 +43,7 @@ func (r *PackageResource) Metadata(_ context.Context, req resource.MetadataReque
 
 func (r *PackageResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Manages a Credible package within a project.",
+		Description: "Manages a Credible package within an environment.",
 		Attributes: map[string]schema.Attribute{
 			"organization": schema.StringAttribute{
 				Description: "The organization name. Defaults to the provider's organization.",
@@ -54,8 +54,8 @@ func (r *PackageResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
-			"project": schema.StringAttribute{
-				Description: "The project name.",
+			"environment": schema.StringAttribute{
+				Description: "The environment name.",
 				Required:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
@@ -133,9 +133,9 @@ func (r *PackageResource) Create(ctx context.Context, req resource.CreateRequest
 		pkg.Description = plan.Description.ValueString()
 	}
 
-	tflog.Debug(ctx, "Creating package", map[string]interface{}{"org": org, "project": plan.Project.ValueString(), "name": pkg.Name})
+	tflog.Debug(ctx, "Creating package", map[string]interface{}{"org": org, "environment": plan.Environment.ValueString(), "name": pkg.Name})
 
-	result, err := r.client.CreatePackage(org, plan.Project.ValueString(), pkg)
+	result, err := r.client.CreatePackage(org, plan.Environment.ValueString(), pkg)
 	if err != nil {
 		resp.Diagnostics.AddError("Error creating package", err.Error())
 		return
@@ -161,7 +161,7 @@ func (r *PackageResource) Read(ctx context.Context, req resource.ReadRequest, re
 	}
 
 	org := r.getOrg(&state)
-	result, err := r.client.GetPackage(org, state.Project.ValueString(), state.Name.ValueString())
+	result, err := r.client.GetPackage(org, state.Environment.ValueString(), state.Name.ValueString())
 	if err != nil {
 		if client.IsNotFound(err) {
 			resp.State.RemoveResource(ctx)
@@ -194,7 +194,7 @@ func (r *PackageResource) Update(ctx context.Context, req resource.UpdateRequest
 		pkg.Description = plan.Description.ValueString()
 	}
 
-	result, err := r.client.UpdatePackage(org, plan.Project.ValueString(), plan.Name.ValueString(), pkg)
+	result, err := r.client.UpdatePackage(org, plan.Environment.ValueString(), plan.Name.ValueString(), pkg)
 	if err != nil {
 		resp.Diagnostics.AddError("Error updating package", err.Error())
 		return
@@ -226,7 +226,7 @@ func (r *PackageResource) Delete(ctx context.Context, req resource.DeleteRequest
 	}
 
 	org := r.getOrg(&state)
-	err := r.client.DeletePackage(org, state.Project.ValueString(), state.Name.ValueString())
+	err := r.client.DeletePackage(org, state.Environment.ValueString(), state.Name.ValueString())
 	if err != nil && !client.IsNotFound(err) {
 		resp.Diagnostics.AddError("Error deleting package", err.Error())
 	}
@@ -235,12 +235,12 @@ func (r *PackageResource) Delete(ctx context.Context, req resource.DeleteRequest
 func (r *PackageResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	parts := strings.SplitN(req.ID, "/", 3)
 	if len(parts) != 3 {
-		resp.Diagnostics.AddError("Invalid import ID", "Import ID must be in the format: organization/project/package")
+		resp.Diagnostics.AddError("Invalid import ID", "Import ID must be in the format: organization/environment/package")
 		return
 	}
 
-	org, project, name := parts[0], parts[1], parts[2]
-	result, err := r.client.GetPackage(org, project, name)
+	org, environment, name := parts[0], parts[1], parts[2]
+	result, err := r.client.GetPackage(org, environment, name)
 	if err != nil {
 		resp.Diagnostics.AddError("Error importing package", err.Error())
 		return
@@ -248,7 +248,7 @@ func (r *PackageResource) ImportState(ctx context.Context, req resource.ImportSt
 
 	state := PackageResourceModel{
 		Organization:  types.StringValue(org),
-		Project:       types.StringValue(project),
+		Environment:   types.StringValue(environment),
 		Name:          types.StringValue(result.Name),
 		Description:   types.StringValue(result.Description),
 		LatestVersion: types.StringValue(result.LatestVersion),

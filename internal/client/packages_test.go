@@ -13,7 +13,7 @@ func TestCreatePackage(t *testing.T) {
 		if r.Method != "POST" {
 			t.Errorf("expected POST, got %s", r.Method)
 		}
-		if r.URL.Path != "/api/v0/organizations/my-org/projects/my-proj/packages" {
+		if r.URL.Path != "/api/v0/organizations/my-org/environments/my-proj/packages" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
 
@@ -46,7 +46,7 @@ func TestCreatePackage(t *testing.T) {
 func TestGetPackage(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path != "/api/v0/organizations/my-org/projects/my-proj/packages/my-pkg" {
+			if r.URL.Path != "/api/v0/organizations/my-org/environments/my-proj/packages/my-pkg" {
 				t.Errorf("unexpected path: %s", r.URL.Path)
 			}
 			w.WriteHeader(http.StatusOK)
@@ -119,7 +119,7 @@ func TestDeletePackage(t *testing.T) {
 			if r.Method != "DELETE" {
 				t.Errorf("expected DELETE, got %s", r.Method)
 			}
-			if r.URL.Path != "/api/v0/organizations/my-org/projects/my-proj/packages/my-pkg" {
+			if r.URL.Path != "/api/v0/organizations/my-org/environments/my-proj/packages/my-pkg" {
 				t.Errorf("unexpected path: %s", r.URL.Path)
 			}
 			w.WriteHeader(http.StatusNoContent)
@@ -150,7 +150,7 @@ func TestDeletePackage(t *testing.T) {
 
 func TestListPackages(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v0/organizations/my-org/projects/my-proj/packages" {
+		if r.URL.Path != "/api/v0/organizations/my-org/environments/my-proj/packages" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
 		w.WriteHeader(http.StatusOK)
@@ -173,7 +173,7 @@ func TestListPackages(t *testing.T) {
 
 func TestGetVersion(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v0/organizations/my-org/projects/my-proj/packages/my-pkg/versions/1.0.0" {
+		if r.URL.Path != "/api/v0/organizations/my-org/environments/my-proj/packages/my-pkg/versions/1.0.0" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
 		w.WriteHeader(http.StatusOK)
@@ -205,7 +205,7 @@ func TestUpdateVersion(t *testing.T) {
 		if r.Method != "PATCH" {
 			t.Errorf("expected PATCH, got %s", r.Method)
 		}
-		if r.URL.Path != "/api/v0/organizations/my-org/projects/my-proj/packages/my-pkg/versions/1.0.0" {
+		if r.URL.Path != "/api/v0/organizations/my-org/environments/my-proj/packages/my-pkg/versions/1.0.0" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
 		w.WriteHeader(http.StatusOK)
@@ -234,7 +234,7 @@ func TestCreateVersion(t *testing.T) {
 		if r.Method != "POST" {
 			t.Errorf("expected POST, got %s", r.Method)
 		}
-		if r.URL.Path != "/api/v0/organizations/my-org/projects/my-proj/packages/my-pkg/versions" {
+		if r.URL.Path != "/api/v0/organizations/my-org/environments/my-proj/packages/my-pkg/versions" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
 

@@ -55,7 +55,7 @@ terraform import credible_organization.main my-org
 
 - `display_name` (String) — Human-readable display name. Can be updated in place.
 - `deletion_protection` (Boolean) — Prevents `terraform destroy` from removing this resource. **Default: `true`**. You must explicitly set this to `false` and run `terraform apply` before you can destroy the organization.
-- `force_cascade` (Boolean) — Controls whether the organization can be destroyed when it still contains projects. **Default: `false`**. When `false`, Terraform will refuse to destroy an organization that has projects — you must remove the projects first or set this to `true`.
+- `force_cascade` (Boolean) — Controls whether the organization can be destroyed when it still contains environments. **Default: `false`**. When `false`, Terraform will refuse to destroy an organization that has environments — you must remove the environments first or set this to `true`.
 
 ### Read-Only
 
@@ -70,7 +70,7 @@ Because `deletion_protection` defaults to `true`, you cannot destroy this resour
 resource "credible_organization" "main" {
   name                = "my-org"
   deletion_protection = false  # Step 1: disable protection
-  force_cascade       = true   # Optional: allow deletion with child projects
+  force_cascade       = true   # Optional: allow deletion with child environments
 }
 ```
 

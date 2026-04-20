@@ -5,9 +5,6 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
-	"io"
-	"os"
-	"path/filepath"
 	"github.com/credibledata/terraform-provider-credible/internal/client"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -18,6 +15,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
+	"io"
+	"os"
+	"path/filepath"
 )
 
 var _ resource.Resource = &PackageVersionResource{}
@@ -28,7 +28,7 @@ type PackageVersionResource struct {
 
 type PackageVersionResourceModel struct {
 	Organization  types.String `tfsdk:"organization"`
-	Project       types.String `tfsdk:"project"`
+	Environment   types.String `tfsdk:"environment"`
 	PackageName   types.String `tfsdk:"package_name"`
 	VersionID     types.String `tfsdk:"version_id"`
 	SourceDir     types.String `tfsdk:"source_dir"`
@@ -61,8 +61,8 @@ func (r *PackageVersionResource) Schema(_ context.Context, _ resource.SchemaRequ
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
-			"project": schema.StringAttribute{
-				Description: "The project name.",
+			"environment": schema.StringAttribute{
+				Description: "The environment name.",
 				Required:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
@@ -254,11 +254,11 @@ func (r *PackageVersionResource) Create(ctx context.Context, req resource.Create
 	}
 
 	tflog.Debug(ctx, "Creating package version", map[string]interface{}{
-		"org": org, "project": plan.Project.ValueString(),
+		"org": org, "environment": plan.Environment.ValueString(),
 		"package": plan.PackageName.ValueString(), "version": version.ID,
 	})
 
-	result, err := r.client.CreateVersion(org, plan.Project.ValueString(), plan.PackageName.ValueString(), version, uploadPath)
+	result, err := r.client.CreateVersion(org, plan.Environment.ValueString(), plan.PackageName.ValueString(), version, uploadPath)
 	if err != nil {
 		resp.Diagnostics.AddError("Error creating package version", err.Error())
 		return
@@ -282,7 +282,7 @@ func (r *PackageVersionResource) Read(ctx context.Context, req resource.ReadRequ
 	}
 
 	org := r.getOrg(&state)
-	result, err := r.client.GetVersion(org, state.Project.ValueString(), state.PackageName.ValueString(), state.VersionID.ValueString())
+	result, err := r.client.GetVersion(org, state.Environment.ValueString(), state.PackageName.ValueString(), state.VersionID.ValueString())
 	if err != nil {
 		if client.IsNotFound(err) {
 			resp.State.RemoveResource(ctx)
@@ -317,7 +317,7 @@ func (r *PackageVersionResource) Update(ctx context.Context, req resource.Update
 			ArchiveStatus: plan.ArchiveStatus.ValueString(),
 		}
 
-		result, err := r.client.UpdateVersion(org, plan.Project.ValueString(), plan.PackageName.ValueString(), plan.VersionID.ValueString(), version)
+		result, err := r.client.UpdateVersion(org, plan.Environment.ValueString(), plan.PackageName.ValueString(), plan.VersionID.ValueString(), version)
 		if err != nil {
 			resp.Diagnostics.AddError("Error updating package version", err.Error())
 			return
@@ -346,10 +346,9 @@ func (r *PackageVersionResource) Delete(ctx context.Context, req resource.Delete
 		ArchiveStatus: "archive",
 	}
 
-	_, err := r.client.UpdateVersion(org, state.Project.ValueString(), state.PackageName.ValueString(), state.VersionID.ValueString(), version)
+	_, err := r.client.UpdateVersion(org, state.Environment.ValueString(), state.PackageName.ValueString(), state.VersionID.ValueString(), version)
 	if err != nil && !client.IsNotFound(err) {
 		// Log warning but don't fail — the version may already be archived or deleted
 		tflog.Warn(ctx, "Could not archive version during delete", map[string]interface{}{"error": err.Error()})
 	}
 }
-

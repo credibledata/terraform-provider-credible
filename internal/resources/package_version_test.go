@@ -24,7 +24,7 @@ func createTestSourceDir(t *testing.T) string {
 
 func TestAccPackageVersion_basic(t *testing.T) {
 	orgName := randomName("test-org-tf")
-	projName := randomName("test-proj-tf")
+	envName := randomName("test-env-tf")
 	pkgName := randomName("test-pkg-tf")
 	sourceDir := createTestSourceDir(t)
 
@@ -33,11 +33,11 @@ func TestAccPackageVersion_basic(t *testing.T) {
 		PreCheck:                 func() { testAccPreCheck(t) },
 		Steps: []resource.TestStep{
 			{
-				Config: testAccPackageVersionConfig(orgName, projName, pkgName, "1.0.0", sourceDir),
+				Config: testAccPackageVersionConfig(orgName, envName, pkgName, "1.0.0", sourceDir),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("credible_package_version.test", "version_id", "1.0.0"),
 					resource.TestCheckResourceAttr("credible_package_version.test", "organization", orgName),
-					resource.TestCheckResourceAttr("credible_package_version.test", "project", projName),
+					resource.TestCheckResourceAttr("credible_package_version.test", "environment", envName),
 					resource.TestCheckResourceAttr("credible_package_version.test", "package_name", pkgName),
 					resource.TestCheckResourceAttrSet("credible_package_version.test", "archive_status"),
 					resource.TestCheckResourceAttrSet("credible_package_version.test", "index_status"),
@@ -51,7 +51,7 @@ func TestAccPackageVersion_basic(t *testing.T) {
 
 func TestAccPackageVersion_archive(t *testing.T) {
 	orgName := randomName("test-org-tf")
-	projName := randomName("test-proj-tf")
+	envName := randomName("test-env-tf")
 	pkgName := randomName("test-pkg-tf")
 	sourceDir := createTestSourceDir(t)
 
@@ -60,13 +60,13 @@ func TestAccPackageVersion_archive(t *testing.T) {
 		PreCheck:                 func() { testAccPreCheck(t) },
 		Steps: []resource.TestStep{
 			{
-				Config: testAccPackageVersionConfig(orgName, projName, pkgName, "1.0.0", sourceDir),
+				Config: testAccPackageVersionConfig(orgName, envName, pkgName, "1.0.0", sourceDir),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("credible_package_version.test", "version_id", "1.0.0"),
 				),
 			},
 			{
-				Config: testAccPackageVersionConfigWithArchive(orgName, projName, pkgName, "1.0.0", "archive", sourceDir),
+				Config: testAccPackageVersionConfigWithArchive(orgName, envName, pkgName, "1.0.0", "archive", sourceDir),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("credible_package_version.test", "archive_status", "archive"),
 				),
@@ -75,14 +75,14 @@ func TestAccPackageVersion_archive(t *testing.T) {
 	})
 }
 
-func testAccPackageVersionConfig(orgName, projName, pkgName, versionID, sourceDir string) string {
+func testAccPackageVersionConfig(orgName, envName, pkgName, versionID, sourceDir string) string {
 	return providerConfig() + fmt.Sprintf(`
 resource "credible_organization" "test" {
   name                = %q
   deletion_protection = false
 }
 
-resource "credible_project" "test" {
+resource "credible_environment" "test" {
   organization        = credible_organization.test.name
   name                = %q
   deletion_protection = false
@@ -91,29 +91,29 @@ resource "credible_project" "test" {
 
 resource "credible_package" "test" {
   organization        = credible_organization.test.name
-  project             = credible_project.test.name
+  environment         = credible_environment.test.name
   name                = %q
   deletion_protection = false
 }
 
 resource "credible_package_version" "test" {
   organization = credible_organization.test.name
-  project      = credible_project.test.name
+  environment  = credible_environment.test.name
   package_name = credible_package.test.name
   version_id   = %q
   source_dir   = %q
 }
-`, orgName, projName, pkgName, versionID, sourceDir)
+`, orgName, envName, pkgName, versionID, sourceDir)
 }
 
-func testAccPackageVersionConfigWithArchive(orgName, projName, pkgName, versionID, archiveStatus, sourceDir string) string {
+func testAccPackageVersionConfigWithArchive(orgName, envName, pkgName, versionID, archiveStatus, sourceDir string) string {
 	return providerConfig() + fmt.Sprintf(`
 resource "credible_organization" "test" {
   name                = %q
   deletion_protection = false
 }
 
-resource "credible_project" "test" {
+resource "credible_environment" "test" {
   organization        = credible_organization.test.name
   name                = %q
   deletion_protection = false
@@ -122,18 +122,18 @@ resource "credible_project" "test" {
 
 resource "credible_package" "test" {
   organization        = credible_organization.test.name
-  project             = credible_project.test.name
+  environment         = credible_environment.test.name
   name                = %q
   deletion_protection = false
 }
 
 resource "credible_package_version" "test" {
   organization   = credible_organization.test.name
-  project        = credible_project.test.name
+  environment    = credible_environment.test.name
   package_name   = credible_package.test.name
   version_id     = %q
   source_dir     = %q
   archive_status = %q
 }
-`, orgName, projName, pkgName, versionID, sourceDir, archiveStatus)
+`, orgName, envName, pkgName, versionID, sourceDir, archiveStatus)
 }

@@ -4,19 +4,19 @@ import "fmt"
 
 // Connection represents a Credible database connection.
 type Connection struct {
-	Name                    string               `json:"name,omitempty"`
-	Type                    string               `json:"type,omitempty"`
-	IncludeTables           []string             `json:"includeTables,omitempty"`
-	ExcludeTables           []string             `json:"excludeTables,omitempty"`
-	ExcludeAllTables        *bool                `json:"excludeAllTables,omitempty"`
-	IndexingStatus          string               `json:"indexingStatus,omitempty"`
-	PostgresConnection      *PostgresConnection  `json:"postgresConnection,omitempty"`
-	BigqueryConnection      *BigqueryConnection  `json:"bigqueryConnection,omitempty"`
-	SnowflakeConnection     *SnowflakeConnection `json:"snowflakeConnection,omitempty"`
-	TrinoConnection         *TrinoConnection     `json:"trinoConnection,omitempty"`
-	MysqlConnection         *MysqlConnection     `json:"mysqlConnection,omitempty"`
-	DuckdbConnection        *DuckdbConnection    `json:"duckdbConnection,omitempty"`
-	MotherduckConnection    *MotherduckConnection `json:"motherduckConnection,omitempty"`
+	Name                 string                `json:"name,omitempty"`
+	Type                 string                `json:"type,omitempty"`
+	IncludeTables        []string              `json:"includeTables,omitempty"`
+	ExcludeTables        []string              `json:"excludeTables,omitempty"`
+	ExcludeAllTables     *bool                 `json:"excludeAllTables,omitempty"`
+	IndexingStatus       string                `json:"indexingStatus,omitempty"`
+	PostgresConnection   *PostgresConnection   `json:"postgresConnection,omitempty"`
+	BigqueryConnection   *BigqueryConnection   `json:"bigqueryConnection,omitempty"`
+	SnowflakeConnection  *SnowflakeConnection  `json:"snowflakeConnection,omitempty"`
+	TrinoConnection      *TrinoConnection      `json:"trinoConnection,omitempty"`
+	MysqlConnection      *MysqlConnection      `json:"mysqlConnection,omitempty"`
+	DuckdbConnection     *DuckdbConnection     `json:"duckdbConnection,omitempty"`
+	MotherduckConnection *MotherduckConnection `json:"motherduckConnection,omitempty"`
 }
 
 type PostgresConnection struct {
@@ -38,16 +38,16 @@ type BigqueryConnection struct {
 }
 
 type SnowflakeConnection struct {
-	Account                      string `json:"account,omitempty"`
-	Username                     string `json:"username,omitempty"`
-	Password                     string `json:"password,omitempty"`
-	PrivateKey                   string `json:"privateKey,omitempty"`
-	PrivateKeyPass               string `json:"privateKeyPass,omitempty"`
-	Warehouse                    string `json:"warehouse,omitempty"`
-	Database                     string `json:"database,omitempty"`
-	Schema                       string `json:"schema,omitempty"`
-	Role                         string `json:"role,omitempty"`
-	ResponseTimeoutMilliseconds  *int   `json:"responseTimeoutMilliseconds,omitempty"`
+	Account                     string `json:"account,omitempty"`
+	Username                    string `json:"username,omitempty"`
+	Password                    string `json:"password,omitempty"`
+	PrivateKey                  string `json:"privateKey,omitempty"`
+	PrivateKeyPass              string `json:"privateKeyPass,omitempty"`
+	Warehouse                   string `json:"warehouse,omitempty"`
+	Database                    string `json:"database,omitempty"`
+	Schema                      string `json:"schema,omitempty"`
+	Role                        string `json:"role,omitempty"`
+	ResponseTimeoutMilliseconds *int   `json:"responseTimeoutMilliseconds,omitempty"`
 }
 
 type TrinoConnection struct {
@@ -76,44 +76,44 @@ type MotherduckConnection struct {
 	MdToken string `json:"md_token,omitempty"`
 }
 
-func (c *Client) ListConnections(org, project string) ([]Connection, error) {
+func (c *Client) ListConnections(org, environment string) ([]Connection, error) {
 	var result []Connection
-	err := c.doJSON("GET", fmt.Sprintf("/organizations/%s/projects/%s/connections", org, project), nil, &result)
+	err := c.doJSON("GET", fmt.Sprintf("/organizations/%s/environments/%s/connections", org, environment), nil, &result)
 	if err != nil {
 		return nil, fmt.Errorf("listing connections: %w", err)
 	}
 	return result, nil
 }
 
-func (c *Client) CreateConnection(org, project string, conn *Connection) (*Connection, error) {
+func (c *Client) CreateConnection(org, environment string, conn *Connection) (*Connection, error) {
 	var result Connection
-	err := c.doJSON("POST", fmt.Sprintf("/organizations/%s/projects/%s/connections", org, project), conn, &result)
+	err := c.doJSON("POST", fmt.Sprintf("/organizations/%s/environments/%s/connections", org, environment), conn, &result)
 	if err != nil {
 		return nil, fmt.Errorf("creating connection: %w", err)
 	}
 	return &result, nil
 }
 
-func (c *Client) GetConnection(org, project, name string) (*Connection, error) {
+func (c *Client) GetConnection(org, environment, name string) (*Connection, error) {
 	var result Connection
-	err := c.doJSON("GET", fmt.Sprintf("/organizations/%s/projects/%s/connections/%s", org, project, name), nil, &result)
+	err := c.doJSON("GET", fmt.Sprintf("/organizations/%s/environments/%s/connections/%s", org, environment, name), nil, &result)
 	if err != nil {
 		return nil, fmt.Errorf("getting connection %q: %w", name, err)
 	}
 	return &result, nil
 }
 
-func (c *Client) UpdateConnection(org, project, name string, conn *Connection) (*Connection, error) {
+func (c *Client) UpdateConnection(org, environment, name string, conn *Connection) (*Connection, error) {
 	var result Connection
-	err := c.doJSON("PATCH", fmt.Sprintf("/organizations/%s/projects/%s/connections/%s", org, project, name), conn, &result)
+	err := c.doJSON("PATCH", fmt.Sprintf("/organizations/%s/environments/%s/connections/%s", org, environment, name), conn, &result)
 	if err != nil {
 		return nil, fmt.Errorf("updating connection %q: %w", name, err)
 	}
 	return &result, nil
 }
 
-func (c *Client) DeleteConnection(org, project, name string) error {
-	err := c.doJSON("DELETE", fmt.Sprintf("/organizations/%s/projects/%s/connections/%s", org, project, name), nil, nil)
+func (c *Client) DeleteConnection(org, environment, name string) error {
+	err := c.doJSON("DELETE", fmt.Sprintf("/organizations/%s/environments/%s/connections/%s", org, environment, name), nil, nil)
 	if err != nil {
 		return fmt.Errorf("deleting connection %q: %w", name, err)
 	}

@@ -134,17 +134,17 @@ func TestDeleteOrgPermission(t *testing.T) {
 	})
 }
 
-// --- Project Permissions ---
+// --- Environment permissions ---
 
-func TestCreateProjectPermission(t *testing.T) {
+func TestCreateEnvironmentPermission(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			t.Errorf("expected POST, got %s", r.Method)
 		}
-		if r.URL.Path != "/api/v0/organizations/my-org/projects/my-proj/permissions" {
+		if r.URL.Path != "/api/v0/organizations/my-org/environments/my-env/permissions" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
-		w.WriteHeader(http.StatusCreated)
+		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(Permission{
 			UserGroupID: "group:devs",
 			Permission:  "modeler",
@@ -153,7 +153,7 @@ func TestCreateProjectPermission(t *testing.T) {
 	defer server.Close()
 
 	c := NewClient(server.URL, "ApiKey k", "org")
-	result, err := c.CreateProjectPermission("my-org", "my-proj", &Permission{
+	result, err := c.CreateEnvironmentPermission("my-org", "my-env", &Permission{
 		UserGroupID: "group:devs",
 		Permission:  "modeler",
 	})
@@ -165,7 +165,7 @@ func TestCreateProjectPermission(t *testing.T) {
 	}
 }
 
-func TestGetProjectPermission(t *testing.T) {
+func TestGetEnvironmentPermission(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.Method != "GET" {
@@ -180,7 +180,7 @@ func TestGetProjectPermission(t *testing.T) {
 		defer server.Close()
 
 		c := NewClient(server.URL, "ApiKey k", "org")
-		result, err := c.GetProjectPermission("my-org", "my-proj", "group:devs")
+		result, err := c.GetEnvironmentPermission("my-org", "my-env", "group:devs")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -197,7 +197,7 @@ func TestGetProjectPermission(t *testing.T) {
 		defer server.Close()
 
 		c := NewClient(server.URL, "ApiKey k", "org")
-		_, err := c.GetProjectPermission("my-org", "my-proj", "group:missing")
+		_, err := c.GetEnvironmentPermission("my-org", "my-env", "group:missing")
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -207,7 +207,7 @@ func TestGetProjectPermission(t *testing.T) {
 	})
 }
 
-func TestUpdateProjectPermission(t *testing.T) {
+func TestUpdateEnvironmentPermission(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "PATCH" {
 			t.Errorf("expected PATCH, got %s", r.Method)
@@ -221,7 +221,7 @@ func TestUpdateProjectPermission(t *testing.T) {
 	defer server.Close()
 
 	c := NewClient(server.URL, "ApiKey k", "org")
-	result, err := c.UpdateProjectPermission("my-org", "my-proj", "group:devs", &Permission{Permission: "viewer"})
+	result, err := c.UpdateEnvironmentPermission("my-org", "my-env", "group:devs", &Permission{Permission: "viewer"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -230,20 +230,20 @@ func TestUpdateProjectPermission(t *testing.T) {
 	}
 }
 
-func TestDeleteProjectPermission(t *testing.T) {
+func TestDeleteEnvironmentPermission(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "DELETE" {
 			t.Errorf("expected DELETE, got %s", r.Method)
 		}
-		if r.URL.Path != "/api/v0/organizations/my-org/projects/my-proj/permissions/group:devs" {
+		if r.URL.Path != "/api/v0/organizations/my-org/environments/my-env/permissions/group:devs" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
-		w.WriteHeader(http.StatusNoContent)
+		w.WriteHeader(http.StatusOK)
 	}))
 	defer server.Close()
 
 	c := NewClient(server.URL, "ApiKey k", "org")
-	err := c.DeleteProjectPermission("my-org", "my-proj", "group:devs")
+	err := c.DeleteEnvironmentPermission("my-org", "my-env", "group:devs")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

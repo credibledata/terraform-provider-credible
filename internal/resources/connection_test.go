@@ -9,7 +9,7 @@ import (
 
 func TestAccConnection_postgres(t *testing.T) {
 	orgName := randomName("test-org-tf")
-	projName := randomName("test-proj-tf")
+	envName := randomName("test-env-tf")
 	connName := randomName("test-conn-tf")
 
 	resource.Test(t, resource.TestCase{
@@ -17,12 +17,12 @@ func TestAccConnection_postgres(t *testing.T) {
 		PreCheck:                 func() { testAccPreCheck(t) },
 		Steps: []resource.TestStep{
 			{
-				Config: testAccConnectionPostgresConfig(orgName, projName, connName),
+				Config: testAccConnectionPostgresConfig(orgName, envName, connName),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("credible_connection.test", "name", connName),
 					resource.TestCheckResourceAttr("credible_connection.test", "type", "postgres"),
 					resource.TestCheckResourceAttr("credible_connection.test", "organization", orgName),
-					resource.TestCheckResourceAttr("credible_connection.test", "project", projName),
+					resource.TestCheckResourceAttr("credible_connection.test", "environment", envName),
 					resource.TestCheckResourceAttrSet("credible_connection.test", "indexing_status"),
 				),
 			},
@@ -30,7 +30,7 @@ func TestAccConnection_postgres(t *testing.T) {
 			{
 				ResourceName:            "credible_connection.test",
 				ImportState:             true,
-				ImportStateId:           fmt.Sprintf("%s/%s/%s", orgName, projName, connName),
+				ImportStateId:           fmt.Sprintf("%s/%s/%s", orgName, envName, connName),
 				ImportStateVerify:       true,
 				ImportStateVerifyIgnore: []string{"postgres.password", "postgres.connection_string"},
 			},
@@ -40,7 +40,7 @@ func TestAccConnection_postgres(t *testing.T) {
 
 func TestAccConnection_duckdb(t *testing.T) {
 	orgName := randomName("test-org-tf")
-	projName := randomName("test-proj-tf")
+	envName := randomName("test-env-tf")
 	connName := randomName("test-conn-tf")
 
 	resource.Test(t, resource.TestCase{
@@ -48,7 +48,7 @@ func TestAccConnection_duckdb(t *testing.T) {
 		PreCheck:                 func() { testAccPreCheck(t) },
 		Steps: []resource.TestStep{
 			{
-				Config: testAccConnectionDuckdbConfig(orgName, projName, connName),
+				Config: testAccConnectionDuckdbConfig(orgName, envName, connName),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("credible_connection.test", "name", connName),
 					resource.TestCheckResourceAttr("credible_connection.test", "type", "duckdb"),
@@ -58,14 +58,14 @@ func TestAccConnection_duckdb(t *testing.T) {
 	})
 }
 
-func testAccConnectionPostgresConfig(orgName, projName, connName string) string {
+func testAccConnectionPostgresConfig(orgName, envName, connName string) string {
 	return providerConfig() + fmt.Sprintf(`
 resource "credible_organization" "test" {
   name                = %q
   deletion_protection = false
 }
 
-resource "credible_project" "test" {
+resource "credible_environment" "test" {
   organization        = credible_organization.test.name
   name                = %q
   deletion_protection = false
@@ -74,7 +74,7 @@ resource "credible_project" "test" {
 
 resource "credible_connection" "test" {
   organization = credible_organization.test.name
-  project      = credible_project.test.name
+  environment  = credible_environment.test.name
   name         = %q
   type         = "postgres"
 
@@ -86,17 +86,17 @@ resource "credible_connection" "test" {
     password      = "testpass"
   }
 }
-`, orgName, projName, connName)
+`, orgName, envName, connName)
 }
 
-func testAccConnectionDuckdbConfig(orgName, projName, connName string) string {
+func testAccConnectionDuckdbConfig(orgName, envName, connName string) string {
 	return providerConfig() + fmt.Sprintf(`
 resource "credible_organization" "test" {
   name                = %q
   deletion_protection = false
 }
 
-resource "credible_project" "test" {
+resource "credible_environment" "test" {
   organization        = credible_organization.test.name
   name                = %q
   deletion_protection = false
@@ -105,7 +105,7 @@ resource "credible_project" "test" {
 
 resource "credible_connection" "test" {
   organization = credible_organization.test.name
-  project      = credible_project.test.name
+  environment  = credible_environment.test.name
   name         = %q
   type         = "duckdb"
 
@@ -113,5 +113,5 @@ resource "credible_connection" "test" {
     url = "duckdb:///test.db"
   }
 }
-`, orgName, projName, connName)
+`, orgName, envName, connName)
 }

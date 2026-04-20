@@ -1,6 +1,6 @@
 # Terraform Provider for Credible
 
-A Terraform provider to manage [Credible](https://credibledata.com) resources declaratively — organizations, projects, database connections, permissions, groups, and packages.
+A Terraform provider to manage [Credible](https://credibledata.com) resources declaratively — organizations, environments, database connections, permissions, groups, and packages.
 
 ## Requirements
 
@@ -76,7 +76,7 @@ resource "credible_organization" "main" {
 | `name`                | string | yes      | Unique organization name. Changing forces recreation. |
 | `display_name`        | string | no       | Human-readable display name. |
 | `deletion_protection` | bool   | no       | Prevents `terraform destroy` when `true` (default). Set to `false` to allow deletion. |
-| `force_cascade`       | bool   | no       | When `false` (default), destroy is blocked if the org contains projects. |
+| `force_cascade`       | bool   | no       | When `false` (default), destroy is blocked if the org contains environments. |
 | `created_at`          | string | computed | Creation timestamp. |
 | `updated_at`          | string | computed | Last update timestamp. |
 
@@ -86,12 +86,12 @@ resource "credible_organization" "main" {
 
 ---
 
-### `credible_project`
+### `credible_environment`
 
-Manages a project within an organization.
+Manages an environment within an organization.
 
 ```hcl
-resource "credible_project" "analytics" {
+resource "credible_environment" "analytics" {
   name                = "analytics"
   readme              = "Analytics data models"
   replication_count   = 1
@@ -103,25 +103,25 @@ resource "credible_project" "analytics" {
 | Attribute             | Type   | Required | Description |
 |-----------------------|--------|----------|-------------|
 | `organization`        | string | no       | Organization name. Defaults to the provider's organization. |
-| `name`                | string | yes      | Unique project name. Changing forces recreation. |
-| `readme`              | string | no       | Markdown-formatted project description. |
+| `name`                | string | yes      | Unique environment name. Changing forces recreation. |
+| `readme`              | string | no       | Markdown-formatted environment description. |
 | `replication_count`   | int    | no       | Number of replicas for high availability (1–10). |
 | `deletion_protection` | bool   | no       | Prevents `terraform destroy` when `true` (default). |
-| `force_cascade`       | bool   | no       | When `false` (default), destroy is blocked if the project contains packages or connections. |
+| `force_cascade`       | bool   | no       | When `false` (default), destroy is blocked if the environment contains packages or connections. |
 | `created_at`          | string | computed | Creation timestamp. |
 | `updated_at`          | string | computed | Last update timestamp. |
 
-**Import:** `terraform import credible_project.analytics my-org/analytics`
+**Import:** `terraform import credible_environment.analytics my-org/analytics`
 
 ---
 
 ### `credible_connection`
 
-Manages a database connection within a project. Exactly one connection type block must be specified.
+Manages a database connection within an environment. Exactly one connection type block must be specified.
 
 ```hcl
 resource "credible_connection" "warehouse" {
-  project = credible_project.analytics.name
+  environment = credible_environment.analytics.name
   name    = "main-warehouse"
   type    = "bigquery"
 
@@ -137,7 +137,7 @@ resource "credible_connection" "warehouse" {
 | Attribute            | Type         | Required | Description |
 |----------------------|--------------|----------|-------------|
 | `organization`       | string       | no       | Defaults to provider's organization. |
-| `project`            | string       | yes      | Project name. |
+| `environment`        | string       | yes      | Environment name. |
 | `name`               | string       | yes      | Unique connection name. Changing forces recreation. |
 | `type`               | string       | yes      | One of: `postgres`, `bigquery`, `snowflake`, `trino`, `mysql`, `duckdb`, `motherduck`. |
 | `include_tables`     | list(string) | no       | Tables to include (glob patterns). |
@@ -256,13 +256,13 @@ resource "credible_organization_permission" "alice_admin" {
 
 ---
 
-### `credible_project_permission`
+### `credible_environment_permission`
 
-Manages project-level permissions for a user or group.
+Manages environment-level permissions for a user or group.
 
 ```hcl
-resource "credible_project_permission" "data_team_viewer" {
-  project       = "analytics"
+resource "credible_environment_permission" "data_team_viewer" {
+  environment   = "analytics"
   user_group_id = "group:data-engineering"
   permission    = "viewer"
 }
@@ -271,11 +271,11 @@ resource "credible_project_permission" "data_team_viewer" {
 | Attribute       | Type   | Required | Description |
 |-----------------|--------|----------|-------------|
 | `organization`  | string | no       | Defaults to provider's organization. |
-| `project`       | string | yes      | Project name. |
+| `environment`   | string | yes      | Environment name. |
 | `user_group_id` | string | yes      | `user:<email>` or `group:<name>`. Changing forces recreation. |
 | `permission`    | string | yes      | One of: `admin`, `modeler`, `viewer`. |
 
-**Import:** `terraform import credible_project_permission.data_team_viewer my-org/analytics/group:data-engineering`
+**Import:** `terraform import credible_environment_permission.data_team_viewer my-org/analytics/group:data-engineering`
 
 ---
 
@@ -325,11 +325,11 @@ resource "credible_group_member" "alice" {
 
 ### `credible_package`
 
-Manages a package within a project.
+Manages a package within an environment.
 
 ```hcl
 resource "credible_package" "models" {
-  project             = credible_project.analytics.name
+  environment         = credible_environment.analytics.name
   name                = "analytics-models"
   description         = "Core analytics Malloy models"
   deletion_protection = true  # default: true
@@ -339,7 +339,7 @@ resource "credible_package" "models" {
 | Attribute             | Type   | Required | Description |
 |-----------------------|--------|----------|-------------|
 | `organization`        | string | no       | Defaults to provider's organization. |
-| `project`             | string | yes      | Project name. |
+| `environment`         | string | yes      | Environment name. |
 | `name`                | string | yes      | Unique package name. Changing forces recreation. |
 | `description`         | string | no       | Package description. |
 | `deletion_protection` | bool   | no       | Prevents `terraform destroy` when `true` (default). |
@@ -358,7 +358,7 @@ Publishes a version of a package. Versions are immutable once created.
 ```hcl
 # From a local directory (provider creates the .tar.gz archive)
 resource "credible_package_version" "v1" {
-  project      = credible_project.analytics.name
+  environment  = credible_environment.analytics.name
   package_name = credible_package.models.name
   version_id   = "1.0.0"
   source_dir   = "${path.module}/models/analytics"
@@ -366,7 +366,7 @@ resource "credible_package_version" "v1" {
 
 # From a pre-built archive
 resource "credible_package_version" "v2" {
-  project      = credible_project.analytics.name
+  environment  = credible_environment.analytics.name
   package_name = credible_package.models.name
   version_id   = "2.0.0"
   source_file  = "${path.module}/dist/analytics-models.tar.gz"
@@ -377,7 +377,7 @@ resource "credible_package_version" "v2" {
 | Attribute        | Type   | Required | Description |
 |------------------|--------|----------|-------------|
 | `organization`   | string | no       | Defaults to provider's organization. |
-| `project`        | string | yes      | Project name. |
+| `environment`    | string | yes      | Environment name. |
 | `package_name`   | string | yes      | Package name. |
 | `version_id`     | string | yes      | Semantic version (e.g. `1.0.0`). Changing forces recreation. |
 | `source_dir`     | string | no       | Path to a local directory. Provider archives it as `.tar.gz`. Conflicts with `source_file`. |
@@ -392,10 +392,10 @@ resource "credible_package_version" "v2" {
 
 ## Deletion Protection
 
-Organizations, projects, and packages have `deletion_protection = true` by default. This prevents accidental `terraform destroy` operations. To destroy a protected resource:
+Organizations, environments, and packages have `deletion_protection = true` by default. This prevents accidental `terraform destroy` operations. To destroy a protected resource:
 
 ```hcl
-resource "credible_project" "analytics" {
+resource "credible_environment" "analytics" {
   name                = "analytics"
   deletion_protection = false  # must be set before destroy
 }
@@ -405,15 +405,15 @@ Then run `terraform apply` followed by `terraform destroy`.
 
 ## Force Cascade
 
-Organizations and projects support `force_cascade` (default `false`). When disabled, Terraform will refuse to delete:
+Organizations and environments support `force_cascade` (default `false`). When disabled, Terraform will refuse to delete:
 
-- An **organization** that still contains projects
-- A **project** that still contains packages or connections
+- An **organization** that still contains environments
+- An **environment** that still contains packages or connections
 
 Set `force_cascade = true` to override this check:
 
 ```hcl
-resource "credible_project" "analytics" {
+resource "credible_environment" "analytics" {
   name                = "analytics"
   deletion_protection = false
   force_cascade       = true  # allow deletion even with child resources
