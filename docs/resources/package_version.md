@@ -19,7 +19,7 @@ The provider automatically creates a `.tar.gz` archive from the directory conten
 
 ```hcl
 resource "credible_package_version" "v1" {
-  project      = credible_project.analytics.name
+  environment  = credible_environment.analytics.name
   package_name = credible_package.models.name
   version_id   = "1.0.0"
   source_dir   = "${path.module}/models/analytics"
@@ -30,7 +30,7 @@ resource "credible_package_version" "v1" {
 
 ```hcl
 resource "credible_package_version" "v2" {
-  project      = credible_project.analytics.name
+  environment  = credible_environment.analytics.name
   package_name = credible_package.models.name
   version_id   = "2.0.0"
   source_file  = "${path.module}/dist/analytics-models.tar.gz"
@@ -42,7 +42,7 @@ resource "credible_package_version" "v2" {
 
 ```hcl
 resource "credible_package_version" "v1" {
-  project        = "analytics"
+  environment    = "analytics"
   package_name   = "analytics-models"
   version_id     = "1.0.0"
   source_dir     = "${path.module}/models/analytics"
@@ -54,13 +54,13 @@ resource "credible_package_version" "v1" {
 
 ```hcl
 resource "credible_package" "models" {
-  project     = "analytics"
+  environment = "analytics"
   name        = "analytics-models"
   description = "Core analytics Malloy models"
 }
 
 resource "credible_package_version" "v1" {
-  project      = "analytics"
+  environment  = "analytics"
   package_name = credible_package.models.name
   version_id   = "1.0.0"
   source_dir   = "${path.module}/models"
@@ -71,7 +71,7 @@ resource "credible_package_version" "v1" {
 
 ### Required
 
-- `project` (String) — Project name. **Immutable** — changing forces destroy and recreate.
+- `environment` (String) — Environment name. **Immutable** — changing forces destroy and recreate.
 - `package_name` (String) — Package name. **Immutable**.
 - `version_id` (String) — Semantic version identifier (e.g., `1.0.0`). **Immutable**.
 

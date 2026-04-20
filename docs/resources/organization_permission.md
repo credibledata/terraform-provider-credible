@@ -63,8 +63,8 @@ terraform import credible_organization_permission.alice_admin my-org/user:alice@
 
 | Level | Description |
 |---|---|
-| `admin` | Full control over the organization, projects, and settings |
-| `modeler` | Can create and edit models within the organization's projects |
+| `admin` | Full control over the organization, environments, and settings |
+| `modeler` | Can create and edit models within the organization's environments |
 | `member` | Read-only access to the organization |
 
 ## Import

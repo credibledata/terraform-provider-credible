@@ -32,8 +32,8 @@ resource "credible_organization" "main" {
   display_name = "My Organization"
 }
 
-# 2) Create a project
-resource "credible_project" "analytics" {
+# 2) Create an environment
+resource "credible_environment" "analytics" {
   name             = "analytics"
   readme           = "Analytics data models and dashboards"
   replication_count = 1
@@ -41,7 +41,7 @@ resource "credible_project" "analytics" {
 
 # 3) Create a database connection (BigQuery example)
 resource "credible_connection" "warehouse" {
-  project = credible_project.analytics.name
+  environment = credible_environment.analytics.name
   name    = "main-warehouse"
   type    = "bigquery"
 
@@ -55,7 +55,7 @@ resource "credible_connection" "warehouse" {
 
 # 3b) PostgreSQL connection example
 resource "credible_connection" "postgres_db" {
-  project = credible_project.analytics.name
+  environment = credible_environment.analytics.name
   name    = "app-database"
   type    = "postgres"
 
@@ -84,16 +84,16 @@ resource "credible_organization_permission" "bob_modeler" {
   permission    = "modeler"
 }
 
-# Project-level viewer
-resource "credible_project_permission" "carol_viewer" {
-  project       = credible_project.analytics.name
+# Environment-level viewer
+resource "credible_environment_permission" "carol_viewer" {
+  environment   = credible_environment.analytics.name
   user_group_id = "user:carol@example.com"
   permission    = "viewer"
 }
 
-# Project-level admin for a group
-resource "credible_project_permission" "data_team_admin" {
-  project       = credible_project.analytics.name
+# Environment-level admin for a group
+resource "credible_environment_permission" "data_team_admin" {
+  environment   = credible_environment.analytics.name
   user_group_id = "group:data-engineering"
   permission    = "admin"
 }
@@ -101,14 +101,14 @@ resource "credible_project_permission" "data_team_admin" {
 # 5) Create a package and publish a version
 
 resource "credible_package" "models" {
-  project     = credible_project.analytics.name
+  environment = credible_environment.analytics.name
   name        = "analytics-models"
   description = "Core analytics Malloy models"
 }
 
 # Option A: Publish from a local directory (provider creates the .tar.gz)
 resource "credible_package_version" "v1" {
-  project      = credible_project.analytics.name
+  environment  = credible_environment.analytics.name
   package_name = credible_package.models.name
   version_id   = "1.0.0"
   source_dir   = "${path.module}/models/analytics"
@@ -116,7 +116,7 @@ resource "credible_package_version" "v1" {
 
 # Option B: Publish from a pre-built archive
 # resource "credible_package_version" "v1_archive" {
-#   project      = credible_project.analytics.name
+#   environment  = credible_environment.analytics.name
 #   package_name = credible_package.models.name
 #   version_id   = "1.0.0"
 #   source_file  = "${path.module}/dist/analytics-models.tar.gz"

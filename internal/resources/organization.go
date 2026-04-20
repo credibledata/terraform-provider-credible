@@ -69,7 +69,7 @@ func (r *OrganizationResource) Schema(_ context.Context, _ resource.SchemaReques
 				Default:     booldefault.StaticBool(true),
 			},
 			"force_cascade": schema.BoolAttribute{
-				Description: "If true, allow deleting the organization even if it contains projects. Defaults to false.",
+				Description: "If true, allow deleting the organization even if it contains environments. Defaults to false.",
 				Optional:    true,
 				Computed:    true,
 				Default:     booldefault.StaticBool(false),
@@ -187,15 +187,15 @@ func (r *OrganizationResource) Delete(ctx context.Context, req resource.DeleteRe
 	}
 
 	if !state.ForceCascade.ValueBool() {
-		projects, err := r.client.ListProjects(state.Name.ValueString())
+		environments, err := r.client.ListEnvironments(state.Name.ValueString())
 		if err != nil {
 			resp.Diagnostics.AddError("Error checking organization contents", err.Error())
 			return
 		}
-		if len(projects) > 0 {
+		if len(environments) > 0 {
 			resp.Diagnostics.AddError(
 				"Organization is not empty",
-				fmt.Sprintf("Organization %q contains %d project(s). Set force_cascade = true to allow deletion, or remove the projects first.", state.Name.ValueString(), len(projects)),
+				fmt.Sprintf("Organization %q contains %d environment(s). Set force_cascade = true to allow deletion, or remove the environments first.", state.Name.ValueString(), len(environments)),
 			)
 			return
 		}

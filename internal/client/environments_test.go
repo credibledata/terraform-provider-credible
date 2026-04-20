@@ -7,26 +7,26 @@ import (
 	"testing"
 )
 
-func TestCreateProject(t *testing.T) {
+func TestCreateEnvironment(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.Method != "POST" {
 				t.Errorf("expected POST, got %s", r.Method)
 			}
-			if r.URL.Path != "/api/v0/organizations/my-org/projects" {
+			if r.URL.Path != "/api/v0/organizations/my-org/environments" {
 				t.Errorf("unexpected path: %s", r.URL.Path)
 			}
 
-			var body Project
+			var body Environment
 			json.NewDecoder(r.Body).Decode(&body)
-			if body.Name != "test-proj" {
-				t.Errorf("expected name %q, got %q", "test-proj", body.Name)
+			if body.Name != "test-env" {
+				t.Errorf("expected name %q, got %q", "test-env", body.Name)
 			}
 
 			rc := 2
-			w.WriteHeader(http.StatusCreated)
-			json.NewEncoder(w).Encode(Project{
-				Name:             "test-proj",
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(Environment{
+				Name:             "test-env",
 				Readme:           "# Test",
 				ReplicationCount: &rc,
 				CreatedAt:        "2025-01-01T00:00:00Z",
@@ -37,12 +37,12 @@ func TestCreateProject(t *testing.T) {
 
 		c := NewClient(server.URL, "ApiKey k", "org")
 		rc := 2
-		result, err := c.CreateProject("my-org", &Project{Name: "test-proj", ReplicationCount: &rc})
+		result, err := c.CreateEnvironment("my-org", &Environment{Name: "test-env", ReplicationCount: &rc})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if result.Name != "test-proj" {
-			t.Errorf("expected name %q, got %q", "test-proj", result.Name)
+		if result.Name != "test-env" {
+			t.Errorf("expected name %q, got %q", "test-env", result.Name)
 		}
 		if result.ReplicationCount == nil || *result.ReplicationCount != 2 {
 			t.Errorf("expected replication_count 2, got %v", result.ReplicationCount)
@@ -57,25 +57,25 @@ func TestCreateProject(t *testing.T) {
 		defer server.Close()
 
 		c := NewClient(server.URL, "ApiKey k", "org")
-		_, err := c.CreateProject("my-org", &Project{Name: ""})
+		_, err := c.CreateEnvironment("my-org", &Environment{Name: ""})
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
 	})
 }
 
-func TestGetProject(t *testing.T) {
+func TestGetEnvironment(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.Method != "GET" {
 				t.Errorf("expected GET, got %s", r.Method)
 			}
-			if r.URL.Path != "/api/v0/organizations/my-org/projects/my-proj" {
+			if r.URL.Path != "/api/v0/organizations/my-org/environments/my-env" {
 				t.Errorf("unexpected path: %s", r.URL.Path)
 			}
 			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(Project{
-				Name:      "my-proj",
+			json.NewEncoder(w).Encode(Environment{
+				Name:      "my-env",
 				CreatedAt: "2025-01-01T00:00:00Z",
 				UpdatedAt: "2025-01-01T00:00:00Z",
 			})
@@ -83,12 +83,12 @@ func TestGetProject(t *testing.T) {
 		defer server.Close()
 
 		c := NewClient(server.URL, "ApiKey k", "org")
-		result, err := c.GetProject("my-org", "my-proj")
+		result, err := c.GetEnvironment("my-org", "my-env")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if result.Name != "my-proj" {
-			t.Errorf("expected name %q, got %q", "my-proj", result.Name)
+		if result.Name != "my-env" {
+			t.Errorf("expected name %q, got %q", "my-env", result.Name)
 		}
 	})
 
@@ -100,7 +100,7 @@ func TestGetProject(t *testing.T) {
 		defer server.Close()
 
 		c := NewClient(server.URL, "ApiKey k", "org")
-		_, err := c.GetProject("my-org", "missing")
+		_, err := c.GetEnvironment("my-org", "missing")
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -110,17 +110,17 @@ func TestGetProject(t *testing.T) {
 	})
 }
 
-func TestUpdateProject(t *testing.T) {
+func TestUpdateEnvironment(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "PATCH" {
 			t.Errorf("expected PATCH, got %s", r.Method)
 		}
-		if r.URL.Path != "/api/v0/organizations/my-org/projects/my-proj" {
+		if r.URL.Path != "/api/v0/organizations/my-org/environments/my-env" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(Project{
-			Name:      "my-proj",
+		json.NewEncoder(w).Encode(Environment{
+			Name:      "my-env",
 			Readme:    "# Updated",
 			CreatedAt: "2025-01-01T00:00:00Z",
 			UpdatedAt: "2025-01-02T00:00:00Z",
@@ -129,7 +129,7 @@ func TestUpdateProject(t *testing.T) {
 	defer server.Close()
 
 	c := NewClient(server.URL, "ApiKey k", "org")
-	result, err := c.UpdateProject("my-org", "my-proj", &Project{Readme: "# Updated"})
+	result, err := c.UpdateEnvironment("my-org", "my-env", &Environment{Readme: "# Updated"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -138,21 +138,21 @@ func TestUpdateProject(t *testing.T) {
 	}
 }
 
-func TestDeleteProject(t *testing.T) {
+func TestDeleteEnvironment(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.Method != "DELETE" {
 				t.Errorf("expected DELETE, got %s", r.Method)
 			}
-			if r.URL.Path != "/api/v0/organizations/my-org/projects/my-proj" {
+			if r.URL.Path != "/api/v0/organizations/my-org/environments/my-env" {
 				t.Errorf("unexpected path: %s", r.URL.Path)
 			}
-			w.WriteHeader(http.StatusNoContent)
+			w.WriteHeader(http.StatusOK)
 		}))
 		defer server.Close()
 
 		c := NewClient(server.URL, "ApiKey k", "org")
-		err := c.DeleteProject("my-org", "my-proj")
+		err := c.DeleteEnvironment("my-org", "my-env")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -166,35 +166,35 @@ func TestDeleteProject(t *testing.T) {
 		defer server.Close()
 
 		c := NewClient(server.URL, "ApiKey k", "org")
-		err := c.DeleteProject("my-org", "my-proj")
+		err := c.DeleteEnvironment("my-org", "my-env")
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
 	})
 }
 
-func TestListProjects(t *testing.T) {
+func TestListEnvironments(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "GET" {
 			t.Errorf("expected GET, got %s", r.Method)
 		}
-		if r.URL.Path != "/api/v0/organizations/my-org/projects" {
+		if r.URL.Path != "/api/v0/organizations/my-org/environments" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode([]Project{
-			{Name: "proj-1"},
-			{Name: "proj-2"},
+		json.NewEncoder(w).Encode([]Environment{
+			{Name: "env-1"},
+			{Name: "env-2"},
 		})
 	}))
 	defer server.Close()
 
 	c := NewClient(server.URL, "ApiKey k", "org")
-	result, err := c.ListProjects("my-org")
+	result, err := c.ListEnvironments("my-org")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(result) != 2 {
-		t.Errorf("expected 2 projects, got %d", len(result))
+		t.Errorf("expected 2 environments, got %d", len(result))
 	}
 }

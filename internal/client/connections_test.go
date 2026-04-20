@@ -13,7 +13,7 @@ func TestCreateConnection(t *testing.T) {
 			if r.Method != "POST" {
 				t.Errorf("expected POST, got %s", r.Method)
 			}
-			if r.URL.Path != "/api/v0/organizations/my-org/projects/my-proj/connections" {
+			if r.URL.Path != "/api/v0/organizations/my-org/environments/my-proj/connections" {
 				t.Errorf("unexpected path: %s", r.URL.Path)
 			}
 
@@ -77,7 +77,7 @@ func TestGetConnection(t *testing.T) {
 			if r.Method != "GET" {
 				t.Errorf("expected GET, got %s", r.Method)
 			}
-			if r.URL.Path != "/api/v0/organizations/my-org/projects/my-proj/connections/my-conn" {
+			if r.URL.Path != "/api/v0/organizations/my-org/environments/my-proj/connections/my-conn" {
 				t.Errorf("unexpected path: %s", r.URL.Path)
 			}
 			w.WriteHeader(http.StatusOK)
@@ -126,7 +126,7 @@ func TestUpdateConnection(t *testing.T) {
 		if r.Method != "PATCH" {
 			t.Errorf("expected PATCH, got %s", r.Method)
 		}
-		if r.URL.Path != "/api/v0/organizations/my-org/projects/my-proj/connections/my-conn" {
+		if r.URL.Path != "/api/v0/organizations/my-org/environments/my-proj/connections/my-conn" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
 		w.WriteHeader(http.StatusOK)
@@ -156,7 +156,7 @@ func TestDeleteConnection(t *testing.T) {
 			if r.Method != "DELETE" {
 				t.Errorf("expected DELETE, got %s", r.Method)
 			}
-			if r.URL.Path != "/api/v0/organizations/my-org/projects/my-proj/connections/my-conn" {
+			if r.URL.Path != "/api/v0/organizations/my-org/environments/my-proj/connections/my-conn" {
 				t.Errorf("unexpected path: %s", r.URL.Path)
 			}
 			w.WriteHeader(http.StatusNoContent)

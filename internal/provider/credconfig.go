@@ -15,7 +15,8 @@ type credConfigFile struct {
 
 type credEnvironmentConfig struct {
 	Organization          string `json:"organization,omitempty"`
-	Project               string `json:"project,omitempty"`
+	Environment           string `json:"environment,omitempty"`
+	Project               string `json:"project,omitempty"` // legacy CLI field name (same meaning as environment)
 	AccessToken           string `json:"accessToken,omitempty"`
 	JwtAccessToken        string `json:"jwtAccessToken,omitempty"`
 	IsServiceAccountToken *bool  `json:"isServiceAccountToken,omitempty"`

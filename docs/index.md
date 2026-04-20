@@ -2,12 +2,12 @@
 page_title: "Credible Provider"
 subcategory: ""
 description: |-
-  The Credible provider manages organizations, projects, database connections, permissions, groups, and packages on the Credible platform.
+  The Credible provider manages organizations, environments, database connections, permissions, groups, and packages on the Credible platform.
 ---
 
 # Credible Provider
 
-The Credible provider allows you to manage [Credible](https://credibledata.com) resources declaratively with Terraform — organizations, projects, database connections, permissions, groups, and Malloy model packages.
+The Credible provider allows you to manage [Credible](https://credibledata.com) resources declaratively with Terraform — organizations, environments, database connections, permissions, groups, and Malloy model packages.
 
 ## Example Usage
 
@@ -58,8 +58,8 @@ All provider attributes can be set via environment variables. Environment variab
 ## Default Behaviors
 
 - **`organization`** — If set on the provider, all resources inherit it. You can override it per-resource.
-- **`deletion_protection`** — Defaults to `true` on organizations, projects, and packages. You must explicitly set it to `false` before `terraform destroy` will work.
-- **`force_cascade`** — Defaults to `false` on organizations and projects. When `false`, Terraform refuses to delete a resource that still contains children (e.g., an org with projects, a project with packages/connections).
+- **`deletion_protection`** — Defaults to `true` on organizations, environments, and packages. You must explicitly set it to `false` before `terraform destroy` will work.
+- **`force_cascade`** — Defaults to `false` on organizations and environments. When `false`, Terraform refuses to delete a resource that still contains children (e.g., an org with environments, an environment with packages/connections).
 - **Immutable fields** — `name`, `type`, `version_id`, and `user_group_id` cannot be changed after creation. Changing them in your config will trigger a destroy-and-recreate.
 - **Sensitive fields** — Passwords, keys, and tokens are never returned by the API after creation. Terraform preserves them from your configuration. Plan diffs for these fields are expected.
 
@@ -68,10 +68,10 @@ All provider attributes can be set via environment variables. Environment variab
 | Resource | Description |
 |---|---|
 | [credible_organization](resources/organization.md) | Organizations |
-| [credible_project](resources/project.md) | Projects within an organization |
+| [credible_environment](resources/environment.md) | Environments within an organization |
 | [credible_connection](resources/connection.md) | Database connections (7 types) |
 | [credible_organization_permission](resources/organization_permission.md) | Org-level user/group permissions |
-| [credible_project_permission](resources/project_permission.md) | Project-level user/group permissions |
+| [credible_environment_permission](resources/environment_permission.md) | Environment-level user/group permissions |
 | [credible_group](resources/group.md) | Groups within an organization |
 | [credible_group_member](resources/group_member.md) | Group membership |
 | [credible_package](resources/package.md) | Malloy model packages |

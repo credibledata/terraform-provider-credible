@@ -47,39 +47,39 @@ func (c *Client) DeleteOrgPermission(org, userGroupID string) error {
 	return nil
 }
 
-// Project Permissions
+// Environment permissions
 
-func (c *Client) CreateProjectPermission(org, project string, perm *Permission) (*Permission, error) {
+func (c *Client) CreateEnvironmentPermission(org, environment string, perm *Permission) (*Permission, error) {
 	var result Permission
-	err := c.doJSON("POST", fmt.Sprintf("/organizations/%s/projects/%s/permissions", org, project), perm, &result)
+	err := c.doJSON("POST", fmt.Sprintf("/organizations/%s/environments/%s/permissions", org, environment), perm, &result)
 	if err != nil {
-		return nil, fmt.Errorf("creating project permission: %w", err)
+		return nil, fmt.Errorf("creating environment permission: %w", err)
 	}
 	return &result, nil
 }
 
-func (c *Client) GetProjectPermission(org, project, userGroupID string) (*Permission, error) {
+func (c *Client) GetEnvironmentPermission(org, environment, userGroupID string) (*Permission, error) {
 	var result Permission
-	err := c.doJSON("GET", fmt.Sprintf("/organizations/%s/projects/%s/permissions/%s", org, project, userGroupID), nil, &result)
+	err := c.doJSON("GET", fmt.Sprintf("/organizations/%s/environments/%s/permissions/%s", org, environment, userGroupID), nil, &result)
 	if err != nil {
-		return nil, fmt.Errorf("getting project permission for %q: %w", userGroupID, err)
+		return nil, fmt.Errorf("getting environment permission for %q: %w", userGroupID, err)
 	}
 	return &result, nil
 }
 
-func (c *Client) UpdateProjectPermission(org, project, userGroupID string, perm *Permission) (*Permission, error) {
+func (c *Client) UpdateEnvironmentPermission(org, environment, userGroupID string, perm *Permission) (*Permission, error) {
 	var result Permission
-	err := c.doJSON("PATCH", fmt.Sprintf("/organizations/%s/projects/%s/permissions/%s", org, project, userGroupID), perm, &result)
+	err := c.doJSON("PATCH", fmt.Sprintf("/organizations/%s/environments/%s/permissions/%s", org, environment, userGroupID), perm, &result)
 	if err != nil {
-		return nil, fmt.Errorf("updating project permission for %q: %w", userGroupID, err)
+		return nil, fmt.Errorf("updating environment permission for %q: %w", userGroupID, err)
 	}
 	return &result, nil
 }
 
-func (c *Client) DeleteProjectPermission(org, project, userGroupID string) error {
-	err := c.doJSON("DELETE", fmt.Sprintf("/organizations/%s/projects/%s/permissions/%s", org, project, userGroupID), nil, nil)
+func (c *Client) DeleteEnvironmentPermission(org, environment, userGroupID string) error {
+	err := c.doJSON("DELETE", fmt.Sprintf("/organizations/%s/environments/%s/permissions/%s", org, environment, userGroupID), nil, nil)
 	if err != nil {
-		return fmt.Errorf("deleting project permission for %q: %w", userGroupID, err)
+		return fmt.Errorf("deleting environment permission for %q: %w", userGroupID, err)
 	}
 	return nil
 }

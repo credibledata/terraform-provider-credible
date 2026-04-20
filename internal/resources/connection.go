@@ -26,7 +26,7 @@ type ConnectionResource struct {
 
 type ConnectionResourceModel struct {
 	Organization     types.String `tfsdk:"organization"`
-	Project          types.String `tfsdk:"project"`
+	Environment      types.String `tfsdk:"environment"`
 	Name             types.String `tfsdk:"name"`
 	Type             types.String `tfsdk:"type"`
 	IncludeTables    types.List   `tfsdk:"include_tables"`
@@ -110,7 +110,7 @@ func (r *ConnectionResource) Metadata(_ context.Context, req resource.MetadataRe
 
 func (r *ConnectionResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Manages a database connection within a Credible project.",
+		Description: "Manages a database connection within a Credible environment.",
 		Attributes: map[string]schema.Attribute{
 			"organization": schema.StringAttribute{
 				Description: "The organization name. Defaults to the provider's organization.",
@@ -121,8 +121,8 @@ func (r *ConnectionResource) Schema(_ context.Context, _ resource.SchemaRequest,
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
-			"project": schema.StringAttribute{
-				Description: "The project name.",
+			"environment": schema.StringAttribute{
+				Description: "The environment name.",
 				Required:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
@@ -183,11 +183,11 @@ func (r *ConnectionResource) Schema(_ context.Context, _ resource.SchemaRequest,
 			"bigquery": schema.SingleNestedBlock{
 				Description: "BigQuery connection configuration.",
 				Attributes: map[string]schema.Attribute{
-					"default_project_id":        schema.StringAttribute{Optional: true, Description: "Default BigQuery project ID."},
-					"billing_project_id":        schema.StringAttribute{Optional: true, Description: "Billing project ID."},
-					"location":                  schema.StringAttribute{Optional: true, Description: "Dataset location."},
-					"service_account_key_json":  schema.StringAttribute{Optional: true, Sensitive: true, Description: "Service account key JSON."},
-					"maximum_bytes_billed":      schema.StringAttribute{Optional: true, Description: "Maximum bytes billed."},
+					"default_project_id":         schema.StringAttribute{Optional: true, Description: "Default BigQuery project ID."},
+					"billing_project_id":         schema.StringAttribute{Optional: true, Description: "Billing project ID."},
+					"location":                   schema.StringAttribute{Optional: true, Description: "Dataset location."},
+					"service_account_key_json":   schema.StringAttribute{Optional: true, Sensitive: true, Description: "Service account key JSON."},
+					"maximum_bytes_billed":       schema.StringAttribute{Optional: true, Description: "Maximum bytes billed."},
 					"query_timeout_milliseconds": schema.StringAttribute{Optional: true, Description: "Query timeout in milliseconds."},
 				},
 			},
@@ -497,9 +497,9 @@ func (r *ConnectionResource) Create(ctx context.Context, req resource.CreateRequ
 
 	conn := r.modelToAPI(ctx, &plan)
 
-	tflog.Debug(ctx, "Creating connection", map[string]interface{}{"org": org, "project": plan.Project.ValueString(), "name": conn.Name})
+	tflog.Debug(ctx, "Creating connection", map[string]interface{}{"org": org, "environment": plan.Environment.ValueString(), "name": conn.Name})
 
-	_, err := r.client.CreateConnection(org, plan.Project.ValueString(), conn)
+	_, err := r.client.CreateConnection(org, plan.Environment.ValueString(), conn)
 	if err != nil {
 		resp.Diagnostics.AddError("Error creating connection", err.Error())
 		return
@@ -508,7 +508,7 @@ func (r *ConnectionResource) Create(ctx context.Context, req resource.CreateRequ
 	plan.Organization = types.StringValue(org)
 
 	// Read back to get computed fields
-	result, err := r.client.GetConnection(org, plan.Project.ValueString(), plan.Name.ValueString())
+	result, err := r.client.GetConnection(org, plan.Environment.ValueString(), plan.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading connection after create", err.Error())
 		return
@@ -527,7 +527,7 @@ func (r *ConnectionResource) Read(ctx context.Context, req resource.ReadRequest,
 	}
 
 	org := r.getOrg(&state)
-	result, err := r.client.GetConnection(org, state.Project.ValueString(), state.Name.ValueString())
+	result, err := r.client.GetConnection(org, state.Environment.ValueString(), state.Name.ValueString())
 	if err != nil {
 		if client.IsNotFound(err) {
 			resp.State.RemoveResource(ctx)
@@ -554,7 +554,7 @@ func (r *ConnectionResource) Update(ctx context.Context, req resource.UpdateRequ
 	org := r.getOrg(&plan)
 	conn := r.modelToAPI(ctx, &plan)
 
-	_, err := r.client.UpdateConnection(org, plan.Project.ValueString(), plan.Name.ValueString(), conn)
+	_, err := r.client.UpdateConnection(org, plan.Environment.ValueString(), plan.Name.ValueString(), conn)
 	if err != nil {
 		resp.Diagnostics.AddError("Error updating connection", err.Error())
 		return
@@ -562,7 +562,7 @@ func (r *ConnectionResource) Update(ctx context.Context, req resource.UpdateRequ
 
 	plan.Organization = types.StringValue(org)
 
-	result, err := r.client.GetConnection(org, plan.Project.ValueString(), plan.Name.ValueString())
+	result, err := r.client.GetConnection(org, plan.Environment.ValueString(), plan.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading connection after update", err.Error())
 		return
@@ -581,7 +581,7 @@ func (r *ConnectionResource) Delete(ctx context.Context, req resource.DeleteRequ
 	}
 
 	org := r.getOrg(&state)
-	err := r.client.DeleteConnection(org, state.Project.ValueString(), state.Name.ValueString())
+	err := r.client.DeleteConnection(org, state.Environment.ValueString(), state.Name.ValueString())
 	if err != nil && !client.IsNotFound(err) {
 		resp.Diagnostics.AddError("Error deleting connection", err.Error())
 	}
@@ -590,12 +590,12 @@ func (r *ConnectionResource) Delete(ctx context.Context, req resource.DeleteRequ
 func (r *ConnectionResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	parts := strings.SplitN(req.ID, "/", 3)
 	if len(parts) != 3 {
-		resp.Diagnostics.AddError("Invalid import ID", "Import ID must be in the format: organization/project/connection")
+		resp.Diagnostics.AddError("Invalid import ID", "Import ID must be in the format: organization/environment/connection")
 		return
 	}
 
-	org, project, name := parts[0], parts[1], parts[2]
-	result, err := r.client.GetConnection(org, project, name)
+	org, environment, name := parts[0], parts[1], parts[2]
+	result, err := r.client.GetConnection(org, environment, name)
 	if err != nil {
 		resp.Diagnostics.AddError("Error importing connection", err.Error())
 		return
@@ -603,7 +603,7 @@ func (r *ConnectionResource) ImportState(ctx context.Context, req resource.Impor
 
 	state := ConnectionResourceModel{
 		Organization:   types.StringValue(org),
-		Project:        types.StringValue(project),
+		Environment:    types.StringValue(environment),
 		Name:           types.StringValue(result.Name),
 		Type:           types.StringValue(result.Type),
 		IndexingStatus: types.StringValue(result.IndexingStatus),

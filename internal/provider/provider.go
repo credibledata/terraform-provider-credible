@@ -42,7 +42,7 @@ func (p *CredibleProvider) Metadata(_ context.Context, _ provider.MetadataReques
 
 func (p *CredibleProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Terraform provider for the Credible Admin API. Manages organizations, projects, connections, packages, and permissions. Authentication can be provided explicitly via api_key/bearer_token, or automatically read from the Credible CLI config (~/.cred).",
+		Description: "Terraform provider for the Credible Admin API. Manages organizations, environments, connections, packages, and permissions. Authentication can be provided explicitly via api_key/bearer_token, or automatically read from the Credible CLI config (~/.cred).",
 		Attributes: map[string]schema.Attribute{
 			"url": schema.StringAttribute{
 				Description: "The URL of the Credible controlplane API. Can also be set with the CREDIBLE_URL environment variable.",
@@ -134,10 +134,10 @@ func (p *CredibleProvider) Configure(ctx context.Context, req provider.Configure
 func (p *CredibleProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		resources.NewOrganizationResource,
-		resources.NewProjectResource,
+		resources.NewEnvironmentResource,
 		resources.NewConnectionResource,
 		resources.NewOrganizationPermissionResource,
-		resources.NewProjectPermissionResource,
+		resources.NewEnvironmentPermissionResource,
 		resources.NewGroupResource,
 		resources.NewGroupMemberResource,
 		resources.NewPackageResource,

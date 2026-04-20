@@ -20,8 +20,8 @@ type Version struct {
 }
 
 // CreateVersion publishes a new package version via multipart upload.
-func (c *Client) CreateVersion(org, project, pkg string, version *Version, filePath string) (*Version, error) {
-	url := fmt.Sprintf("%s/api/v0/organizations/%s/projects/%s/packages/%s/versions", c.BaseURL, org, project, pkg)
+func (c *Client) CreateVersion(org, environment, pkg string, version *Version, filePath string) (*Version, error) {
+	url := fmt.Sprintf("%s/api/v0/organizations/%s/environments/%s/packages/%s/versions", c.BaseURL, org, environment, pkg)
 
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
@@ -81,18 +81,18 @@ func (c *Client) CreateVersion(org, project, pkg string, version *Version, fileP
 	return &result, nil
 }
 
-func (c *Client) GetVersion(org, project, pkg, versionID string) (*Version, error) {
+func (c *Client) GetVersion(org, environment, pkg, versionID string) (*Version, error) {
 	var result Version
-	err := c.doJSON("GET", fmt.Sprintf("/organizations/%s/projects/%s/packages/%s/versions/%s", org, project, pkg, versionID), nil, &result)
+	err := c.doJSON("GET", fmt.Sprintf("/organizations/%s/environments/%s/packages/%s/versions/%s", org, environment, pkg, versionID), nil, &result)
 	if err != nil {
 		return nil, fmt.Errorf("getting version %q: %w", versionID, err)
 	}
 	return &result, nil
 }
 
-func (c *Client) UpdateVersion(org, project, pkg, versionID string, version *Version) (*Version, error) {
+func (c *Client) UpdateVersion(org, environment, pkg, versionID string, version *Version) (*Version, error) {
 	var result Version
-	err := c.doJSON("PATCH", fmt.Sprintf("/organizations/%s/projects/%s/packages/%s/versions/%s", org, project, pkg, versionID), version, &result)
+	err := c.doJSON("PATCH", fmt.Sprintf("/organizations/%s/environments/%s/packages/%s/versions/%s", org, environment, pkg, versionID), version, &result)
 	if err != nil {
 		return nil, fmt.Errorf("updating version %q: %w", versionID, err)
 	}

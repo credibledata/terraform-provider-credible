@@ -2,12 +2,12 @@
 page_title: "credible_package Resource - credible"
 subcategory: ""
 description: |-
-  Manages a Malloy model package within a Credible project.
+  Manages a Malloy model package within a Credible environment.
 ---
 
 # credible_package (Resource)
 
-Manages a Malloy model package within a Credible project. Packages contain versioned collections of Malloy models that can be published and shared.
+Manages a Malloy model package within a Credible environment. Packages contain versioned collections of Malloy models that can be published and shared.
 
 ## Example Usage
 
@@ -15,7 +15,7 @@ Manages a Malloy model package within a Credible project. Packages contain versi
 
 ```hcl
 resource "credible_package" "models" {
-  project     = credible_project.analytics.name
+  environment = credible_environment.analytics.name
   name        = "analytics-models"
   description = "Core analytics Malloy models"
 }
@@ -25,13 +25,13 @@ resource "credible_package" "models" {
 
 ```hcl
 resource "credible_package" "models" {
-  project     = "analytics"
+  environment = "analytics"
   name        = "analytics-models"
   description = "Core analytics Malloy models"
 }
 
 resource "credible_package_version" "v1" {
-  project      = "analytics"
+  environment  = "analytics"
   package_name = credible_package.models.name
   version_id   = "1.0.0"
   source_dir   = "${path.module}/models"
@@ -44,13 +44,13 @@ resource "credible_package_version" "v1" {
 
 ```hcl
 resource "credible_package" "models" {
-  project     = "analytics"
+  environment = "analytics"
   name        = "analytics-models"
   description = "Core analytics Malloy models"
 }
 ```
 
-**Step 2:** Import using `<organization>/<project>/<package>`:
+**Step 2:** Import using `<organization>/<environment>/<package>`:
 
 ```shell
 terraform import credible_package.models my-org/analytics/analytics-models
@@ -64,8 +64,8 @@ terraform import credible_package.models my-org/analytics/analytics-models
 
 ### Required
 
-- `project` (String) — Project name. **Immutable** — changing forces destroy and recreate.
-- `name` (String) — Unique package name within the project. **Immutable**.
+- `environment` (String) — Environment name. **Immutable** — changing forces destroy and recreate.
+- `name` (String) — Unique package name within the environment. **Immutable**.
 
 ### Optional
 
@@ -83,7 +83,7 @@ terraform import credible_package.models my-org/analytics/analytics-models
 
 ```hcl
 resource "credible_package" "models" {
-  project             = "analytics"
+  environment         = "analytics"
   name                = "analytics-models"
   deletion_protection = false  # Step 1: disable protection
 }
@@ -96,7 +96,7 @@ terraform destroy # Step 3: destroy the package
 
 ## Import
 
-Import format: `<organization>/<project>/<package>`
+Import format: `<organization>/<environment>/<package>`
 
 ```shell
 terraform import credible_package.models my-org/analytics/analytics-models
