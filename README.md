@@ -58,6 +58,12 @@ All provider attributes can be set via environment variables:
 
 ## Resources
 
+> **Before writing a `terraform destroy`**, read
+> [Resource lifecycle semantics](docs/resource-lifecycle.md). Organizations are
+> owned by Credible and destroy only drops them from state; package versions are
+> archived rather than deleted. That page states, per resource, what each
+> lifecycle operation really does.
+
 ### `credible_organization`
 
 Manages a Credible organization.
@@ -139,7 +145,7 @@ resource "credible_connection" "warehouse" {
 | `organization`       | string       | no       | Defaults to provider's organization. |
 | `environment`        | string       | yes      | Environment name. |
 | `name`               | string       | yes      | Unique connection name. Changing forces recreation. |
-| `type`               | string       | yes      | One of: `postgres`, `bigquery`, `snowflake`, `trino`, `mysql`, `duckdb`, `motherduck`. |
+| `type`               | string       | yes      | One of: `postgres`, `bigquery`, `snowflake`, `trino`, `databricks`, `mysql`, `duckdb`, `motherduck`, `ducklake`, `publisher`. |
 | `include_tables`     | list(string) | no       | Tables to include (glob patterns). |
 | `exclude_tables`     | list(string) | no       | Tables to exclude (glob patterns). |
 | `exclude_all_tables` | bool         | no       | Exclude all tables from indexing. |
@@ -157,6 +163,7 @@ resource "credible_connection" "warehouse" {
 | `user_name`         | string | no        | Username. |
 | `password`          | string | yes       | Password. |
 | `connection_string` | string | yes       | Full connection string (alternative to individual fields). |
+| `sslmode`           | string | no        | `disable`, `no-verify`, `verify-ca`, `verify-full`. Only valid on a proxied connection. |
 </details>
 
 <details>
@@ -170,6 +177,7 @@ resource "credible_connection" "warehouse" {
 | `service_account_key_json`   | string | yes       | Service account key JSON. |
 | `maximum_bytes_billed`       | string | no        | Maximum bytes billed per query. |
 | `query_timeout_milliseconds` | string | no        | Query timeout in milliseconds. |
+| `impersonate_service_account` | string | no       | Service account to impersonate. Mutually exclusive with `service_account_key_json`. |
 </details>
 
 <details>
@@ -199,6 +207,23 @@ resource "credible_connection" "warehouse" {
 | `catalog` | string | Catalog name. |
 | `schema`  | string | Schema name. |
 | `user`    | string | Username. |
+| `password` | string | Password (sensitive). |
+| `peaka_key` | string | Peaka API key, for Peaka-hosted Trino clusters (sensitive). |
+</details>
+
+<details>
+<summary><code>databricks</code></summary>
+
+| Attribute | Type | Sensitive | Description |
+|-----------|------|-----------|-------------|
+| `host` | string | no | Workspace host (e.g. `dbc-xxxxxxxx-xxxx.cloud.databricks.com`). |
+| `path` | string | no | SQL warehouse HTTP path. |
+| `token` | string | yes | Personal access token. |
+| `oauth_client_id` | string | no | OAuth M2M client ID (service principal). |
+| `oauth_client_secret` | string | yes | OAuth M2M client secret. |
+| `default_catalog` | string | no | Default Unity Catalog. |
+| `default_schema` | string | no | Default schema. |
+| `setup_sql` | string | no | SQL run when the connection is established. |
 </details>
 
 <details>
@@ -216,19 +241,44 @@ resource "credible_connection" "warehouse" {
 <details>
 <summary><code>duckdb</code></summary>
 
-| Attribute  | Type   | Sensitive | Description |
-|------------|--------|-----------|-------------|
-| `url`      | string | no        | DuckDB connection URL. |
-| `md_token` | string | yes       | MotherDuck token. |
+Contains repeatable `attached_databases` blocks (`name`, `type`, plus the matching
+`bigquery` / `snowflake` / `postgres` / `gcs` / `s3` / `azure` block); it has no
+direct attributes. See the [connection docs](docs/resources/connection.md).
 </details>
 
 <details>
 <summary><code>motherduck</code></summary>
 
-| Attribute  | Type   | Sensitive | Description |
-|------------|--------|-----------|-------------|
-| `url`      | string | no        | MotherDuck connection URL. |
-| `md_token` | string | yes       | MotherDuck token. |
+| Attribute      | Type   | Sensitive | Description |
+|----------------|--------|-----------|-------------|
+| `access_token` | string | yes       | MotherDuck access token. |
+| `database`     | string | no        | MotherDuck database name. |
+</details>
+
+<details>
+<summary><code>ducklake</code></summary>
+
+Contains a `storage` block (`bucket_url`, plus an `s3` or `gcs` block) and a
+`catalog` block (a `postgres` block, plus an optional `metadata_schema`). See the
+[connection docs](docs/resources/connection.md).
+</details>
+
+<details>
+<summary><code>publisher</code></summary>
+
+| Attribute | Type | Sensitive | Description |
+|-----------|------|-----------|-------------|
+| `connection_uri` | string | no | Full URI of the remote connection. Required when this block is set. |
+| `access_token` | string | yes | Bearer token for the remote dataplane. |
+</details>
+
+<details>
+<summary><code>proxy</code> (any connection type)</summary>
+
+For a database that is not directly routable. `type` is `ssh`; the nested `ssh`
+block takes `host`, `port` (defaults to 22), `username`, `private_key` (sensitive),
+`private_key_pass` (sensitive) and `host_key`. See the
+[connection docs](docs/resources/connection.md).
 </details>
 
 **Import:** `terraform import credible_connection.warehouse my-org/analytics/main-warehouse`

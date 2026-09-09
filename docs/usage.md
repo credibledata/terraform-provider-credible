@@ -47,7 +47,7 @@ export CREDIBLE_API_KEY="your-api-key"
 |---|---|
 | `credible_organization` | Manage organizations |
 | `credible_environment` | Manage environments within an organization |
-| `credible_connection` | Database connections (postgres, bigquery, snowflake, trino, mysql, duckdb, motherduck) |
+| `credible_connection` | Database connections (postgres, bigquery, snowflake, trino, databricks, mysql, duckdb, motherduck, ducklake, publisher) |
 | `credible_organization_permission` | Org-level user/group permissions (admin, modeler, member) |
 | `credible_environment_permission` | Environment-level user/group permissions (admin, modeler, viewer) |
 | `credible_group` | Manage groups within an organization |

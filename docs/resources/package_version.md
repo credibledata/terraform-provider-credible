@@ -94,7 +94,11 @@ resource "credible_package_version" "v1" {
 - **Versions are immutable.** Once created, the contents cannot be changed. To publish new content, create a new version with a bumped `version_id`.
 - **Destroy = archive.** Running `terraform destroy` on a package version archives it rather than deleting it. The version still exists on the platform.
 - **`source_dir` vs `source_file`** — Use `source_dir` to point at a directory of Malloy files; the provider handles archiving. Use `source_file` if you have a CI pipeline that produces the archive.
-- **Change detection** — Use `source_hash = filemd5(...)` with `source_file` to detect when the archive changes. With `source_dir`, changes to the directory path trigger a recreate.
+- **Change detection** — `source_hash` is the only thing that makes Terraform notice edited content. It is optional, and if you omit it, editing files under `source_dir` produces **no diff at all** — Terraform reports "no changes" indefinitely. Only the directory *path* is tracked, not the files in it. With `source_file`, use `source_hash = filemd5(...)`. With `source_dir`, hash the files:
+
+    ```hcl
+    source_hash = sha256(join("", [for f in fileset(path.module, "models/**") : filesha256("${path.module}/${f}")]))
+    ```
 
 ## Import
 

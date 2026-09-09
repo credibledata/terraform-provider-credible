@@ -110,7 +110,17 @@ resource "credible_connection" "test" {
   type         = "duckdb"
 
   duckdb {
-    url = "duckdb:///test.db"
+    attached_databases {
+      name = "test_attachment"
+      type = "s3"
+
+      s3 {
+        provider          = "config"
+        access_key_id     = "AKIAEXAMPLE"
+        secret_access_key = "secret"
+        region            = "us-east-1"
+      }
+    }
   }
 }
 `, orgName, envName, connName)

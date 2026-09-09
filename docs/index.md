@@ -65,6 +65,12 @@ All provider attributes can be set via environment variables. Environment variab
 
 ## Supported Resources
 
+~> Not every resource behaves the way Terraform's model suggests. Organizations
+are owned by Credible, so `terraform destroy` only drops them from state; package
+versions are archived rather than deleted. See
+[Resource lifecycle semantics](resource-lifecycle.md) for what each operation
+really does.
+
 | Resource | Description |
 |---|---|
 | [credible_organization](resources/organization.md) | Organizations |
