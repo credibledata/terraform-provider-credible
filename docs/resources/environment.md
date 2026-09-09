@@ -49,6 +49,8 @@ resource "credible_environment" "analytics" {
 terraform import credible_environment.analytics my-org/analytics
 ```
 
+~> **Set `deletion_protection` explicitly after importing.** Import does not populate it, so an imported resource reads as unprotected and is destroyable on the first attempt, and your next plan shows a diff for the attribute.
+
 **Step 3:** Run `terraform plan` and adjust your HCL until there are no diffs.
 
 -> **Note:** After import, `deletion_protection` defaults to `true` and `force_cascade` defaults to `false`. These flags are Terraform-only and are not stored by the API.
@@ -62,7 +64,7 @@ terraform import credible_environment.analytics my-org/analytics
 ### Optional
 
 - `organization` (String) — Organization name. **Default: provider's `organization`**. **Immutable** — changing forces destroy and recreate.
-- `readme` (String) — Markdown-formatted environment description. Can be updated in place.
+- `readme` (String) — Markdown-formatted environment description. Can be updated in place. Cannot be cleared once set: the API ignores an empty value and keeps the previous one, and the cleared value does not show as drift. Destroy and recreate the resource to remove it.
 - `replication_count` (Number) — Number of replicas for high availability. Valid range: 1–10. Can be updated in place.
 - `deletion_protection` (Boolean) — Prevents `terraform destroy`. **Default: `true`**.
 - `force_cascade` (Boolean) — Allows deletion when the environment still contains packages or connections. **Default: `false`**. When `false`, Terraform blocks destroy if child resources exist.

@@ -56,6 +56,8 @@ resource "credible_package" "models" {
 terraform import credible_package.models my-org/analytics/analytics-models
 ```
 
+~> **Set `deletion_protection` explicitly after importing.** Import does not populate it, so an imported resource reads as unprotected and is destroyable on the first attempt, and your next plan shows a diff for the attribute.
+
 **Step 3:** Run `terraform plan` to verify.
 
 -> **Note:** After import, `deletion_protection` defaults to `true`. You do not need to set it unless you want to destroy the package.
@@ -70,7 +72,7 @@ terraform import credible_package.models my-org/analytics/analytics-models
 ### Optional
 
 - `organization` (String) — Organization name. **Default: provider's `organization`**. **Immutable**.
-- `description` (String) — Package description. Can be updated in place.
+- `description` (String) — Package description. Can be updated in place. Cannot be cleared once set: the API ignores an empty value and keeps the previous one, and the cleared value does not show as drift. Destroy and recreate the resource to remove it.
 - `deletion_protection` (Boolean) — Prevents `terraform destroy`. **Default: `true`**. Must be set to `false` before the package can be destroyed.
 
 ### Read-Only

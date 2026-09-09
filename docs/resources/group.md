@@ -69,7 +69,7 @@ terraform import credible_group.data_eng my-org/data-engineering
 ### Optional
 
 - `organization` (String) — Organization name. **Default: provider's `organization`**. **Immutable**.
-- `description` (String) — Human-readable group description. Can be updated in place.
+- `description` (String) — Human-readable group description. Can be updated in place. Cannot be cleared once set: the API ignores an empty value and keeps the previous one, and the cleared value does not show as drift. Destroy and recreate the resource to remove it.
 
 ### Read-Only
 

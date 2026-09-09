@@ -41,6 +41,8 @@ resource "credible_organization" "main" {
 terraform import credible_organization.main my-org
 ```
 
+~> **Set `deletion_protection` explicitly after importing.** Import does not populate it, so an imported resource reads as unprotected and is destroyable on the first attempt, and your next plan shows a diff for the attribute.
+
 **Step 3:** Run `terraform plan` to verify there are no diffs. Adjust your HCL if needed until the plan is clean.
 
 -> **Note:** After import, `deletion_protection` and `force_cascade` will not be set in state (the API does not store them). Terraform will apply their defaults (`true` and `false` respectively) on the next `terraform apply`.
