@@ -1,0 +1,38 @@
+name: Release packaging
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  packaging:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
+          cache: true
+
+      # Builds the real release artifacts without publishing or signing, so the
+      # asset list and SHA256SUMS below are the ones a release would upload.
+      - name: Build release artifacts
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          args: release --snapshot --clean --skip=sign
+
+      - name: Assert registry-required assets
+        run: ./scripts/check-release-assets.sh dist
+
+      # Covers the checker itself, so a change that stops it detecting the
+      # unchecksummed-manifest case fails here rather than at the next release.
+      - name: Test the asset checker
+        run: ./scripts/check-release-assets_test.sh

@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+# Tests for check-release-assets.sh.
+#
+# Each case builds a dist directory and asserts the checker's exit status, so a
+# regression that makes the gate unable to fail is itself a failure. Case 1 is
+# the exact shape the Terraform registry rejected for v0.0.6.
+set -uo pipefail
+
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CHECK="$HERE/check-release-assets.sh"
+WORK="$(mktemp -d)"
+trap 'rm -rf "$WORK"' EXIT
+
+PROJECT="terraform-provider-credible"
+VERSION="9.9.9"
+MANIFEST="${PROJECT}_${VERSION}_manifest.json"
+SUMS="${PROJECT}_${VERSION}_SHA256SUMS"
+
+fails=0
+
+# Builds a dist dir: $1 target, $2 whether to checksum the manifest
+# (yes|no|wrong), $3 manifest protocol, $4 whether to emit the manifest file.
+make_dist() {
+  local dir="$1" mode="$2" proto="$3" with_manifest="${4:-yes}"
+  rm -rf "$dir"; mkdir -p "$dir"
+
+  local zip="${PROJECT}_${VERSION}_linux_amd64.zip"
+  printf 'not-a-real-zip\n' > "$dir/$zip"
+  ( cd "$dir" && shasum -a 256 "$zip" > "$SUMS" )
+
+  if [ "$with_manifest" = "yes" ]; then
+    printf '{"version":1,"metadata":{"protocol_versions":["%s"]}}\n' "$proto" > "$dir/$MANIFEST"
+    case "$mode" in
+      yes)   ( cd "$dir" && shasum -a 256 "$MANIFEST" >> "$SUMS" ) ;;
+      wrong) printf '%064d  %s\n' 0 "$MANIFEST" >> "$dir/$SUMS" ;;
+      no)    : ;;
+    esac
+  fi
+}
+
+expect() {
+  local name="$1" want="$2" dir="$3"
+  local out; out="$("$CHECK" "$dir" 2>&1)"; local got=$?
+  if [ "$got" -eq "$want" ]; then
+    echo "PASS  $name (exit $got)"
+  else
+    echo "FAIL  $name: expected exit $want, got $got"
+    echo "${out//$'\n'/$'\n'        }" | sed '1s/^/        /'
+    fails=$((fails + 1))
+  fi
+}
+
+# The v0.0.6 bug: manifest uploaded but never checksummed.
+make_dist "$WORK/unchecksummed" no 6.0
+expect "manifest absent from SHA256SUMS is rejected" 1 "$WORK/unchecksummed"
+
+make_dist "$WORK/good" yes 6.0
+expect "fully checksummed release is accepted" 0 "$WORK/good"
+
+# Pre-#11 shape: no asset matching <project>_<version>_manifest.json.
+make_dist "$WORK/nomanifest" no 6.0 no
+expect "missing manifest asset is rejected" 1 "$WORK/nomanifest"
+
+# A protocol-6 provider advertising 5.0 is selectable by CLIs that cannot talk to it.
+make_dist "$WORK/proto5" yes 5.0
+expect "manifest declaring protocol 5.0 is rejected" 1 "$WORK/proto5"
+
+# A stale digest would fail signature/registry verification.
+make_dist "$WORK/mismatch" wrong 6.0
+expect "manifest digest mismatch is rejected" 1 "$WORK/mismatch"
+
+expect "missing dist directory is rejected" 1 "$WORK/does-not-exist"
+
+echo
+if [ "$fails" -gt 0 ]; then
+  echo "$fails test(s) failed"
+  exit 1
+fi
+echo "all tests passed"
