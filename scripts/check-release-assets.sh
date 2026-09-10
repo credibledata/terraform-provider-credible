@@ -18,6 +18,8 @@ set -euo pipefail
 
 DIST="${1:-dist}"
 MANIFEST_SRC="${MANIFEST_SRC:-terraform-registry-manifest.json}"
+# The build matrix in .goreleaser.yml, minus the combinations goreleaser skips.
+EXPECTED_ARCHIVES="${EXPECTED_ARCHIVES:-13}"
 
 if [ ! -d "$DIST" ]; then
   echo "FAIL: dist directory '$DIST' does not exist" >&2
@@ -73,9 +75,14 @@ if [ "$expected" != "$actual" ]; then
   exit 1
 fi
 
+# Pin the platform count so dropping a goos/goarch from the build matrix fails
+# here instead of silently shipping fewer platforms. Update EXPECTED_ARCHIVES
+# deliberately when the matrix changes.
 archives=$(grep -c '\.zip$' "$sums" || true)
-if [ "$archives" -lt 1 ]; then
-  echo "FAIL: no .zip archives listed in $(basename "$sums")" >&2
+if [ "$archives" -ne "$EXPECTED_ARCHIVES" ]; then
+  echo "FAIL: $(basename "$sums") lists $archives archives, expected $EXPECTED_ARCHIVES." >&2
+  echo "      A platform was added or dropped from the build matrix. If intended," >&2
+  echo "      update EXPECTED_ARCHIVES in $(basename "$0")." >&2
   exit 1
 fi
 

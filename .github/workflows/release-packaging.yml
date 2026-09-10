@@ -24,6 +24,11 @@ jobs:
 
       # Builds the real release artifacts without publishing or signing, so the
       # asset list and SHA256SUMS below are the ones a release would upload.
+      # Asserts what a snapshot cannot: --snapshot skips publishing, so
+      # release.extra_files never runs and its absence is invisible in dist.
+      - name: Assert goreleaser config
+        run: ./scripts/check-goreleaser-config.sh
+
       - name: Build release artifacts
         uses: goreleaser/goreleaser-action@v6
         with:
@@ -34,5 +39,7 @@ jobs:
 
       # Covers the checker itself, so a change that stops it detecting the
       # unchecksummed-manifest case fails here rather than at the next release.
-      - name: Test the asset checker
-        run: ./scripts/check-release-assets_test.sh
+      - name: Test the checkers
+        run: |
+          ./scripts/check-goreleaser-config_test.sh
+          ./scripts/check-release-assets_test.sh

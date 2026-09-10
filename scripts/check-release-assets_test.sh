@@ -10,6 +10,9 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CHECK="$HERE/check-release-assets.sh"
 # The checker falls back to this when dist has no manifest, as on a snapshot build.
 export MANIFEST_SRC
+# Fixtures build a single archive. The committed default (the real build matrix)
+# is asserted by its own case at the end.
+export EXPECTED_ARCHIVES=1
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
@@ -95,6 +98,12 @@ make_dist "$WORK/mismatch" wrong 6.0
 expect "manifest digest mismatch is rejected" 1 "$WORK/mismatch"
 
 expect "missing dist directory is rejected" 1 "$WORK/does-not-exist"
+
+# Dropping a platform from the build matrix must fail rather than ship quietly.
+make_dist "$WORK/matrix" yes 6.0
+MANIFEST_SRC="$WORK/matrix/source-manifest.json"
+EXPECTED_ARCHIVES=13 \
+  expect "fewer archives than the build matrix is rejected" 1 "$WORK/matrix"
 
 echo
 if [ "$fails" -gt 0 ]; then

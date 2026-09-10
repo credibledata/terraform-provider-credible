@@ -2,10 +2,17 @@
 # Verifies a released version was actually ingested by the Terraform and
 # OpenTofu registries, and is advertising the right plugin protocol.
 #
-# Ingestion is asynchronous but fast (v0.0.1-v0.0.5 each landed 2-3s after the
-# GitHub release), so a version still absent after the retry window below has
-# been rejected, not queued. The Terraform registry surfaces the reason only in
-# its UI, under Provider version history.
+# Ingestion is asynchronous and slower than the registry's own published-at
+# timestamp suggests: that field records the release time, not when the version
+# becomes queryable. Measured on v0.0.7 (released 16:12:45Z):
+#
+#   terraform  absent 16:18:00Z -> present 16:19:01Z   (~6m)
+#   opentofu   absent 16:28:04Z -> present 16:29:04Z   (~16m)
+#
+# The default window is sized well past both, and each registry is polled on
+# its own clock so a slow one does not eat the other's budget. A version still
+# absent at the end has been refused; the Terraform registry surfaces the
+# reason only in its UI, under Provider version history.
 #
 # Usage: scripts/check-registry-published.sh <version> [attempts] [sleep-seconds]
 #        version may be given as "1.2.3" or "v1.2.3"
@@ -13,8 +20,8 @@ set -uo pipefail
 
 VERSION="${1:?usage: check-registry-published.sh <version> [attempts] [sleep]}"
 VERSION="${VERSION#v}"
-ATTEMPTS="${2:-20}"
-SLEEP="${3:-15}"
+ATTEMPTS="${2:-60}"
+SLEEP="${3:-30}"
 
 NAMESPACE="credibledata"
 NAME="credible"
@@ -53,9 +60,13 @@ await() {
   return 1
 }
 
+# Poll concurrently: sequential awaits would leave the second registry only
+# whatever time the first did not use.
 rc=0
-await "terraform" "https://registry.terraform.io" || rc=1
-await "opentofu"  "https://registry.opentofu.org" || rc=1
+await "terraform" "https://registry.terraform.io" & tf=$!
+await "opentofu"  "https://registry.opentofu.org" & tofu=$!
+wait "$tf"   || rc=1
+wait "$tofu" || rc=1
 
 if [ "$rc" -ne 0 ]; then
   cat >&2 <<MSG

@@ -24,6 +24,10 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Runs before the tag is created: a failure here must not consume a version.
+      - name: Assert goreleaser config
+        run: ./scripts/check-goreleaser-config.sh
+
       - name: Determine next version
         id: version
         run: |
@@ -76,9 +80,3 @@ jobs:
 
       - name: Assert registry-required assets
         run: ./scripts/check-release-assets.sh dist
-
-      # Ingestion is asynchronous, so poll until the registries report the new
-      # version. A version that never appears was refused, and the Terraform
-      # registry reports the reason only in its UI.
-      - name: Verify registry publication
-        run: ./scripts/check-registry-published.sh ${{ steps.version.outputs.tag }}
