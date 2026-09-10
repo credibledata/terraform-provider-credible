@@ -1,0 +1,42 @@
+name: Registry verification
+
+# Runs after Release completes rather than inside it, so a slow ingestion does
+# not fail the release job. Re-running Release would cut an additional version
+# instead of retrying the check, since the version is derived from the newest tag.
+on:
+  workflow_run:
+    workflows: ["Release"]
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to verify (e.g. v0.0.7)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    # A failed release has nothing to verify.
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: version
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            TAG="${{ inputs.version }}"
+          else
+            git fetch --tags --quiet
+            TAG=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n1)
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Verifying $TAG"
+
+      - name: Verify registry publication
+        run: ./scripts/check-registry-published.sh ${{ steps.version.outputs.tag }}
