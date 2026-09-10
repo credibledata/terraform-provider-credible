@@ -8,9 +8,16 @@
 # Terraform registry rejects with "missing SHA256 checksum for [...]".
 #
 # Usage: scripts/check-release-assets.sh <dist-dir>
+#
+# Snapshot builds (goreleaser release --snapshot) skip the publishing stage, and
+# release.extra_files is attached there, so the manifest is never copied into
+# dist. Checksumming does run, so the checks that matter -- is the manifest in
+# SHA256SUMS, does the digest match -- are asserted against the manifest at its
+# source path instead.
 set -euo pipefail
 
 DIST="${1:-dist}"
+MANIFEST_SRC="${MANIFEST_SRC:-terraform-registry-manifest.json}"
 
 if [ ! -d "$DIST" ]; then
   echo "FAIL: dist directory '$DIST' does not exist" >&2
@@ -23,18 +30,22 @@ if [ -z "$sums" ]; then
   exit 1
 fi
 
-manifest=$(find "$DIST" -maxdepth 1 -name '*_manifest.json' -print -quit)
+# The manifest lands in dist only on a real release; on a snapshot it exists
+# only at its source path. Either way it must be the checksummed file, so
+# derive the expected asset name from the SHA256SUMS name and locate a body.
+manifest_name="$(basename "$sums" _SHA256SUMS)_manifest.json"
+manifest=$(find "$DIST" -maxdepth 1 -name "$manifest_name" -print -quit)
+if [ -z "$manifest" ] && [ -f "$MANIFEST_SRC" ]; then
+  manifest="$MANIFEST_SRC"
+fi
 if [ -z "$manifest" ]; then
-  cat >&2 <<'MSG'
-FAIL: no <project>_<version>_manifest.json in dist.
-      Registries look for that exact name. Declare it under release.extra_files
-      with a name_template.
+  cat >&2 <<MSG
+FAIL: cannot find $manifest_name in $DIST, nor $MANIFEST_SRC to check.
+      Registries look for the <project>_<version>_manifest.json name. Declare
+      the manifest under release.extra_files with a name_template.
 MSG
   exit 1
 fi
-
-# The registry matches on the asset's basename, so compare basenames.
-manifest_name=$(basename "$manifest")
 if ! grep -qF "  ${manifest_name}" "$sums"; then
   cat >&2 <<MSG
 FAIL: ${manifest_name} is not listed in $(basename "$sums").

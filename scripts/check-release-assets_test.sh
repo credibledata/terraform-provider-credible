@@ -8,6 +8,8 @@ set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CHECK="$HERE/check-release-assets.sh"
+# The checker falls back to this when dist has no manifest, as on a snapshot build.
+export MANIFEST_SRC
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
@@ -27,6 +29,10 @@ make_dist() {
   local zip="${PROJECT}_${VERSION}_linux_amd64.zip"
   printf 'not-a-real-zip\n' > "$dir/$zip"
   ( cd "$dir" && shasum -a 256 "$zip" > "$SUMS" )
+
+  # Stand in for the repo's terraform-registry-manifest.json.
+  MANIFEST_SRC="$dir/source-manifest.json"
+  printf '{"version":1,"metadata":{"protocol_versions":["%s"]}}\n' "$proto" > "$MANIFEST_SRC"
 
   if [ "$with_manifest" = "yes" ]; then
     printf '{"version":1,"metadata":{"protocol_versions":["%s"]}}\n' "$proto" > "$dir/$MANIFEST"
@@ -59,7 +65,26 @@ expect "fully checksummed release is accepted" 0 "$WORK/good"
 
 # Pre-#11 shape: no asset matching <project>_<version>_manifest.json.
 make_dist "$WORK/nomanifest" no 6.0 no
+rm -f "$WORK/nomanifest/source-manifest.json"
+MANIFEST_SRC="$WORK/nomanifest/source-manifest.json"
 expect "missing manifest asset is rejected" 1 "$WORK/nomanifest"
+
+# A snapshot build skips the publishing stage, so release.extra_files never
+# copies the manifest into dist. checksum.extra_files still runs, so the
+# manifest is listed in SHA256SUMS and the check must pass on its source copy.
+snap="$WORK/snapshot"
+rm -rf "$snap"; mkdir -p "$snap"
+printf 'z\n' > "$snap/${PROJECT}_${VERSION}_linux_amd64.zip"
+MANIFEST_SRC="$snap/source-manifest.json"
+printf '{"version":1,"metadata":{"protocol_versions":["6.0"]}}\n' > "$MANIFEST_SRC"
+( cd "$snap" && shasum -a 256 "${PROJECT}_${VERSION}_linux_amd64.zip" > "$SUMS" )
+printf '%s  %s\n' "$(shasum -a 256 "$MANIFEST_SRC" | awk '{print $1}')" "$MANIFEST" >> "$snap/$SUMS"
+expect "snapshot build without manifest in dist is accepted" 0 "$snap"
+
+# The same snapshot shape, but the manifest was never checksummed: the v0.0.6 bug.
+rm -f "$snap/$SUMS"
+( cd "$snap" && shasum -a 256 "${PROJECT}_${VERSION}_linux_amd64.zip" > "$SUMS" )
+expect "snapshot build with unchecksummed manifest is rejected" 1 "$snap"
 
 # A protocol-6 provider advertising 5.0 is selectable by CLIs that cannot talk to it.
 make_dist "$WORK/proto5" yes 5.0
