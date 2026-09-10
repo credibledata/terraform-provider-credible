@@ -489,3 +489,15 @@ terraform init
 terraform plan
 terraform apply
 ```
+
+## License
+
+This provider is licensed under the [Mozilla Public License 2.0](LICENSE).
+
+The source code for every released binary is this repository at the matching
+`v<version>` tag. Third-party dependencies retain their own licenses, including
+the HashiCorp `terraform-plugin-*` libraries (MPL-2.0) the provider is built on.
+
+Use of the Credible Platform itself is governed separately by the
+[Credible Platform Agreement](https://credibledata.com/terms); this license
+covers the provider only and grants no rights in the service.
