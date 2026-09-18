@@ -86,6 +86,19 @@ func (r *OrganizationPermissionResource) getOrg(model *OrganizationPermissionRes
 	return r.client.Organization
 }
 
+// applyResult writes the API's view of the grant onto the model.
+//
+// The subject is the caller's, never the response's: it is this resource's
+// identity, the API is asked for it by path, and a response that omits it would
+// empty the id in state. An emptied id makes the next refresh request
+// `.../permissions/` with no id, which 404s, drops the resource and recreates it
+// into a 409 against the grant that is still there.
+func (m *OrganizationPermissionResourceModel) applyResult(org, userGroupID string, result *client.Permission) {
+	m.Organization = types.StringValue(org)
+	m.UserGroupID = types.StringValue(userGroupID)
+	m.Permission = types.StringValue(result.Permission)
+}
+
 func (r *OrganizationPermissionResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var plan OrganizationPermissionResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
@@ -110,9 +123,7 @@ func (r *OrganizationPermissionResource) Create(ctx context.Context, req resourc
 		return
 	}
 
-	plan.Organization = types.StringValue(org)
-	plan.UserGroupID = types.StringValue(result.UserGroupID)
-	plan.Permission = types.StringValue(result.Permission)
+	plan.applyResult(org, plan.UserGroupID.ValueString(), result)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
@@ -135,9 +146,7 @@ func (r *OrganizationPermissionResource) Read(ctx context.Context, req resource.
 		return
 	}
 
-	state.Organization = types.StringValue(org)
-	state.UserGroupID = types.StringValue(result.UserGroupID)
-	state.Permission = types.StringValue(result.Permission)
+	state.applyResult(org, state.UserGroupID.ValueString(), result)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
@@ -160,9 +169,7 @@ func (r *OrganizationPermissionResource) Update(ctx context.Context, req resourc
 		return
 	}
 
-	plan.Organization = types.StringValue(org)
-	plan.UserGroupID = types.StringValue(result.UserGroupID)
-	plan.Permission = types.StringValue(result.Permission)
+	plan.applyResult(org, plan.UserGroupID.ValueString(), result)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
@@ -196,11 +203,8 @@ func (r *OrganizationPermissionResource) ImportState(ctx context.Context, req re
 		return
 	}
 
-	state := OrganizationPermissionResourceModel{
-		Organization: types.StringValue(org),
-		UserGroupID:  types.StringValue(result.UserGroupID),
-		Permission:   types.StringValue(result.Permission),
-	}
+	var state OrganizationPermissionResourceModel
+	state.applyResult(org, userGroupID, result)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
