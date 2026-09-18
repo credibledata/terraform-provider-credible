@@ -94,6 +94,19 @@ func (r *EnvironmentPermissionResource) getOrg(model *EnvironmentPermissionResou
 	return r.client.Organization
 }
 
+// toAPI builds the request body for a create or an update.
+//
+// The subject rides along with the role on both. The server addresses the grant
+// by path but validates the body, so a body naming no subject is refused -- and
+// a role change is an in-place update, so this is the only request a managed
+// permission sends after its create.
+func (m *EnvironmentPermissionResourceModel) toAPI() *client.Permission {
+	return &client.Permission{
+		UserGroupID: m.UserGroupID.ValueString(),
+		Permission:  m.Permission.ValueString(),
+	}
+}
+
 // applyResult writes the API's view of the grant onto the model.
 //
 // The subject is the caller's, never the response's: it is this resource's
@@ -120,12 +133,7 @@ func (r *EnvironmentPermissionResource) Create(ctx context.Context, req resource
 		return
 	}
 
-	perm := &client.Permission{
-		UserGroupID: plan.UserGroupID.ValueString(),
-		Permission:  plan.Permission.ValueString(),
-	}
-
-	result, err := r.client.CreateEnvironmentPermission(org, plan.Environment.ValueString(), perm)
+	result, err := r.client.CreateEnvironmentPermission(org, plan.Environment.ValueString(), plan.toAPI())
 	if err != nil {
 		resp.Diagnostics.AddError("Error creating environment permission", err.Error())
 		return
@@ -167,11 +175,8 @@ func (r *EnvironmentPermissionResource) Update(ctx context.Context, req resource
 	}
 
 	org := r.getOrg(&plan)
-	perm := &client.Permission{
-		Permission: plan.Permission.ValueString(),
-	}
 
-	result, err := r.client.UpdateEnvironmentPermission(org, plan.Environment.ValueString(), plan.UserGroupID.ValueString(), perm)
+	result, err := r.client.UpdateEnvironmentPermission(org, plan.Environment.ValueString(), plan.UserGroupID.ValueString(), plan.toAPI())
 	if err != nil {
 		resp.Diagnostics.AddError("Error updating environment permission", err.Error())
 		return

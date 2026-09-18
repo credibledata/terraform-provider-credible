@@ -99,3 +99,40 @@ func TestOrganizationPermissionApplyResult_TakesTheSubjectFromTheImportID(t *tes
 		t.Errorf("user_group_id: expected %q, got %q", "user:testuser@example.com", got)
 	}
 }
+
+// The server validates the body even though the path addresses the grant, so a
+// request that names only the role is refused. These fail if the subject is
+// dropped from the request again.
+
+func TestEnvironmentPermissionToAPI_NamesTheSubject(t *testing.T) {
+	model := EnvironmentPermissionResourceModel{
+		Environment: types.StringValue("test-env"),
+		UserGroupID: types.StringValue("group:ci-publisher"),
+		Permission:  types.StringValue("modeler"),
+	}
+
+	body := model.toAPI()
+
+	if body.UserGroupID != "group:ci-publisher" {
+		t.Errorf("userGroupId: expected %q, got %q", "group:ci-publisher", body.UserGroupID)
+	}
+	if body.Permission != "modeler" {
+		t.Errorf("permission: expected %q, got %q", "modeler", body.Permission)
+	}
+}
+
+func TestOrganizationPermissionToAPI_NamesTheSubject(t *testing.T) {
+	model := OrganizationPermissionResourceModel{
+		UserGroupID: types.StringValue("group:ci-publisher"),
+		Permission:  types.StringValue("admin"),
+	}
+
+	body := model.toAPI()
+
+	if body.UserGroupID != "group:ci-publisher" {
+		t.Errorf("userGroupId: expected %q, got %q", "group:ci-publisher", body.UserGroupID)
+	}
+	if body.Permission != "admin" {
+		t.Errorf("permission: expected %q, got %q", "admin", body.Permission)
+	}
+}
