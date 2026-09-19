@@ -94,6 +94,32 @@ func (r *EnvironmentPermissionResource) getOrg(model *EnvironmentPermissionResou
 	return r.client.Organization
 }
 
+// toAPI builds the request body for a create or an update.
+//
+// The subject rides along with the role on both. The server addresses the grant
+// by path but validates the body, so a body naming no subject is refused -- and
+// a role change is an in-place update, so this is the only request a managed
+// permission sends after its create.
+func (m *EnvironmentPermissionResourceModel) toAPI() *client.Permission {
+	return &client.Permission{
+		UserGroupID: m.UserGroupID.ValueString(),
+		Permission:  m.Permission.ValueString(),
+	}
+}
+
+// applyResult writes the API's view of the grant onto the model.
+//
+// The subject is the caller's, never the response's: it is this resource's
+// identity, the API is asked for it by path, and a response that omits it would
+// empty the id in state. An emptied id makes the next refresh request
+// `.../permissions/` with no id, which 404s, drops the resource and recreates it
+// into a 409 against the grant that is still there.
+func (m *EnvironmentPermissionResourceModel) applyResult(org, userGroupID string, result *client.Permission) {
+	m.Organization = types.StringValue(org)
+	m.UserGroupID = types.StringValue(userGroupID)
+	m.Permission = types.StringValue(result.Permission)
+}
+
 func (r *EnvironmentPermissionResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var plan EnvironmentPermissionResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
@@ -107,20 +133,13 @@ func (r *EnvironmentPermissionResource) Create(ctx context.Context, req resource
 		return
 	}
 
-	perm := &client.Permission{
-		UserGroupID: plan.UserGroupID.ValueString(),
-		Permission:  plan.Permission.ValueString(),
-	}
-
-	result, err := r.client.CreateEnvironmentPermission(org, plan.Environment.ValueString(), perm)
+	result, err := r.client.CreateEnvironmentPermission(org, plan.Environment.ValueString(), plan.toAPI())
 	if err != nil {
 		resp.Diagnostics.AddError("Error creating environment permission", err.Error())
 		return
 	}
 
-	plan.Organization = types.StringValue(org)
-	plan.UserGroupID = types.StringValue(result.UserGroupID)
-	plan.Permission = types.StringValue(result.Permission)
+	plan.applyResult(org, plan.UserGroupID.ValueString(), result)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
@@ -143,9 +162,7 @@ func (r *EnvironmentPermissionResource) Read(ctx context.Context, req resource.R
 		return
 	}
 
-	state.Organization = types.StringValue(org)
-	state.UserGroupID = types.StringValue(result.UserGroupID)
-	state.Permission = types.StringValue(result.Permission)
+	state.applyResult(org, state.UserGroupID.ValueString(), result)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
@@ -158,19 +175,14 @@ func (r *EnvironmentPermissionResource) Update(ctx context.Context, req resource
 	}
 
 	org := r.getOrg(&plan)
-	perm := &client.Permission{
-		Permission: plan.Permission.ValueString(),
-	}
 
-	result, err := r.client.UpdateEnvironmentPermission(org, plan.Environment.ValueString(), plan.UserGroupID.ValueString(), perm)
+	result, err := r.client.UpdateEnvironmentPermission(org, plan.Environment.ValueString(), plan.UserGroupID.ValueString(), plan.toAPI())
 	if err != nil {
 		resp.Diagnostics.AddError("Error updating environment permission", err.Error())
 		return
 	}
 
-	plan.Organization = types.StringValue(org)
-	plan.UserGroupID = types.StringValue(result.UserGroupID)
-	plan.Permission = types.StringValue(result.Permission)
+	plan.applyResult(org, plan.UserGroupID.ValueString(), result)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
@@ -203,12 +215,8 @@ func (r *EnvironmentPermissionResource) ImportState(ctx context.Context, req res
 		return
 	}
 
-	state := EnvironmentPermissionResourceModel{
-		Organization: types.StringValue(org),
-		Environment:  types.StringValue(environment),
-		UserGroupID:  types.StringValue(result.UserGroupID),
-		Permission:   types.StringValue(result.Permission),
-	}
+	state := EnvironmentPermissionResourceModel{Environment: types.StringValue(environment)}
+	state.applyResult(org, userGroupID, result)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
