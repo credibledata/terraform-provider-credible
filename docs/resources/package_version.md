@@ -2,12 +2,12 @@
 page_title: "credible_package_version Resource - credible"
 subcategory: ""
 description: |-
-  Publishes an immutable version of a Malloy model package in Credible.
+  Manages the archive state of an immutable version of a Malloy model package in Credible. Publishing a new version does not currently work.
 ---
 
 # credible_package_version (Resource)
 
-Publishes a version of a Credible package. Versions are **immutable** once created — they cannot be modified or truly deleted.
+Manages the archive state of a version of a Credible package. Versions are **immutable** once created — they cannot be modified or truly deleted. Publishing a new version through this resource does not currently work; see below.
 
 !> **Publishing through this resource does not currently work.** It uploads to `POST .../packages/{package}/versions`, a path the Credible Admin API serves `GET` only, so an apply fails with `HTTP 405: Method 'POST' is not supported`. The API publishes through `POST /organizations/{org}/environments/{env}/packages/{package}` instead, whose multipart body names its parts `package`, `version`, `packageFile` and `md5Hash` rather than the `body` and `file` this resource sends. Publish with `cred publish` or the Admin API until this is corrected; `archive_status` on an already-published version is unaffected.
 
@@ -52,23 +52,6 @@ resource "credible_package_version" "v1" {
 }
 ```
 
-### Full lifecycle: package + version
-
-```hcl
-resource "credible_package" "models" {
-  environment = "analytics"
-  name        = "analytics-models"
-  description = "Core analytics Malloy models"
-}
-
-resource "credible_package_version" "v1" {
-  environment  = "analytics"
-  package_name = credible_package.models.name
-  version_id   = "1.0.0"
-  source_dir   = "${path.module}/models"
-}
-```
-
 ## Schema
 
 ### Required
@@ -104,4 +87,6 @@ resource "credible_package_version" "v1" {
 
 ## Import
 
-Package versions cannot be imported because `source_dir`/`source_file` are local paths that cannot be recovered from the API. To manage an existing version, add it to your Terraform config and create it fresh (the API will reject duplicate `version_id` values — use a new version number).
+Package versions cannot be imported because `source_dir`/`source_file` are local paths that cannot be recovered from the API.
+
+There is no way to bring an existing version under management today: import is unsupported, and creating it fresh is not a route either -- publishing through this resource fails (see the warning at the top), and a duplicate `version_id` would be rejected regardless. Publish with `cred publish` or the Admin API, and manage the package itself through `credible_package`.

@@ -2,7 +2,7 @@
 page_title: "credible_package Resource - credible"
 subcategory: ""
 description: |-
-  Manages a Malloy model package within a Credible environment.
+  Manages a Malloy model package that already exists in a Credible environment. Packages are created by publishing, not by this resource.
 ---
 
 # credible_package (Resource)
