@@ -24,6 +24,10 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Runs before the tag is created: a failure here must not consume a version.
+      - name: Assert goreleaser config
+        run: ./scripts/check-goreleaser-config.sh
+
       - name: Determine next version
         id: version
         run: |
@@ -73,3 +77,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
+
+      - name: Assert registry-required assets
+        run: ./scripts/check-release-assets.sh dist
