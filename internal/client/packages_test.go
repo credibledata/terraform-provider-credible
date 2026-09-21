@@ -8,41 +8,6 @@ import (
 	"testing"
 )
 
-func TestCreatePackage(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "POST" {
-			t.Errorf("expected POST, got %s", r.Method)
-		}
-		if r.URL.Path != "/api/v0/organizations/my-org/environments/my-proj/packages" {
-			t.Errorf("unexpected path: %s", r.URL.Path)
-		}
-
-		var body Package
-		json.NewDecoder(r.Body).Decode(&body)
-		if body.Name != "my-pkg" {
-			t.Errorf("expected name %q, got %q", "my-pkg", body.Name)
-		}
-
-		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(Package{
-			Name:        "my-pkg",
-			Description: "A test package",
-			CreatedAt:   "2025-01-01T00:00:00Z",
-			UpdatedAt:   "2025-01-01T00:00:00Z",
-		})
-	}))
-	defer server.Close()
-
-	c := NewClient(server.URL, "ApiKey k", "org")
-	result, err := c.CreatePackage("my-org", "my-proj", &Package{Name: "my-pkg", Description: "A test package"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if result.Name != "my-pkg" {
-		t.Errorf("expected name %q, got %q", "my-pkg", result.Name)
-	}
-}
-
 func TestGetPackage(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

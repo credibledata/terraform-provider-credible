@@ -20,15 +20,6 @@ func (c *Client) ListPackages(org, environment string) ([]Package, error) {
 	return result, nil
 }
 
-func (c *Client) CreatePackage(org, environment string, pkg *Package) (*Package, error) {
-	var result Package
-	err := c.doJSON("POST", fmt.Sprintf("/organizations/%s/environments/%s/packages", org, environment), pkg, &result)
-	if err != nil {
-		return nil, fmt.Errorf("creating package: %w", err)
-	}
-	return &result, nil
-}
-
 func (c *Client) GetPackage(org, environment, name string) (*Package, error) {
 	var result Package
 	err := c.doJSON("GET", fmt.Sprintf("/organizations/%s/environments/%s/packages/%s", org, environment, name), nil, &result)

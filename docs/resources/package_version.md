@@ -9,6 +9,8 @@ description: |-
 
 Publishes a version of a Credible package. Versions are **immutable** once created — they cannot be modified or truly deleted.
 
+!> **Publishing through this resource does not currently work.** It uploads to `POST .../packages/{package}/versions`, a path the Credible Admin API serves `GET` only, so an apply fails with `HTTP 405: Method 'POST' is not supported`. The API publishes through `POST /organizations/{org}/environments/{env}/packages/{package}` instead, whose multipart body names its parts `package`, `version`, `packageFile` and `md5Hash` rather than the `body` and `file` this resource sends. Publish with `cred publish` or the Admin API until this is corrected; `archive_status` on an already-published version is unaffected.
+
 ~> **Important:** `terraform destroy` on a package version does not delete it. It **archives** the version instead. Archived versions can be unarchived by setting `archive_status = "unarchive"`.
 
 ## Example Usage

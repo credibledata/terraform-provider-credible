@@ -2,89 +2,74 @@ package resources_test
 
 import (
 	"fmt"
+	"regexp"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
 
-func TestAccPackage_basic(t *testing.T) {
-	orgName := randomName("test-org-tf")
-	envName := randomName("test-env-tf")
-	pkgName := randomName("test-pkg-tf")
-
-	resource.Test(t, resource.TestCase{
+// The Admin API creates a package by publishing -- one multipart request carrying
+// the package, its first version and the model archive -- and offers no operation
+// that creates package metadata alone. So an apply that declares a package
+// Terraform has not imported must refuse, and refuse in a way that names the
+// operation that does exist.
+//
+// Asserted without a live API on purpose. The acceptance tests that covered this
+// resource before all created a package, so they skipped whenever CREDIBLE_URL was
+// unset -- which is every CI run -- and a resource whose create answered HTTP 405
+// on every apply went unnoticed. This test needs no credentials and so actually
+// runs.
+func TestPackage_createIsRefused(t *testing.T) {
+	resource.UnitTest(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		PreCheck:                 func() { testAccPreCheck(t) },
 		Steps: []resource.TestStep{
 			{
-				Config: testAccPackageConfig(orgName, envName, pkgName, "A test package"),
-				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("credible_package.test", "name", pkgName),
-					resource.TestCheckResourceAttr("credible_package.test", "organization", orgName),
-					resource.TestCheckResourceAttr("credible_package.test", "environment", envName),
-					resource.TestCheckResourceAttr("credible_package.test", "description", "A test package"),
-					resource.TestCheckResourceAttr("credible_package.test", "deletion_protection", "false"),
-					resource.TestCheckResourceAttrSet("credible_package.test", "created_at"),
-					resource.TestCheckResourceAttrSet("credible_package.test", "updated_at"),
-				),
-			},
-			// Import
-			{
-				ResourceName:            "credible_package.test",
-				ImportState:             true,
-				ImportStateId:           fmt.Sprintf("%s/%s/%s", orgName, envName, pkgName),
-				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"deletion_protection"},
+				Config:      testAccPackageCreateConfig("my-org", "analytics", "analytics-models"),
+				ExpectError: regexp.MustCompile(`Creating a package is not supported`),
 			},
 		},
 	})
 }
 
-func TestAccPackage_updateDescription(t *testing.T) {
-	orgName := randomName("test-org-tf")
-	envName := randomName("test-env-tf")
-	pkgName := randomName("test-pkg-tf")
-
-	resource.Test(t, resource.TestCase{
-		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		PreCheck:                 func() { testAccPreCheck(t) },
-		Steps: []resource.TestStep{
-			{
-				Config: testAccPackageConfig(orgName, envName, pkgName, "Original"),
-				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("credible_package.test", "description", "Original"),
-				),
-			},
-			{
-				Config: testAccPackageConfig(orgName, envName, pkgName, "Updated"),
-				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("credible_package.test", "description", "Updated"),
-				),
-			},
-		},
-	})
+// The refusal is only useful if it tells the reader what to do instead, so the
+// message is pinned rather than just its presence: the publish path the API does
+// serve, and the import that adopts a package already published.
+func TestPackage_createRefusalNamesThePublishPathAndImport(t *testing.T) {
+	for _, want := range []string{
+		`/organizations/my-org/environments/analytics/packages/analytics-models`,
+		`terraform import`,
+		`my-org/analytics/analytics-models`,
+	} {
+		t.Run(want, func(t *testing.T) {
+			resource.UnitTest(t, resource.TestCase{
+				ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+				Steps: []resource.TestStep{
+					{
+						Config:      testAccPackageCreateConfig("my-org", "analytics", "analytics-models"),
+						ExpectError: regexp.MustCompile(regexp.QuoteMeta(want)),
+					},
+				},
+			})
+		})
+	}
 }
 
-func testAccPackageConfig(orgName, envName, pkgName, description string) string {
-	return providerConfig() + fmt.Sprintf(`
-resource "credible_organization" "test" {
-  name                = %q
-  deletion_protection = false
-}
-
-resource "credible_environment" "test" {
-  organization        = credible_organization.test.name
-  name                = %q
-  deletion_protection = false
-  force_cascade       = true
+// Declares the package alone, with the organization on the provider: the refusal
+// has to happen before any API call, so the config deliberately does not create a
+// parent organization or environment it would otherwise need.
+func testAccPackageCreateConfig(orgName, envName, pkgName string) string {
+	return fmt.Sprintf(`
+provider "credible" {
+  url          = "http://localhost:1"
+  organization = %q
+  bearer_token = "not-used-no-request-is-made"
 }
 
 resource "credible_package" "test" {
-  organization        = credible_organization.test.name
-  environment         = credible_environment.test.name
+  environment         = %q
   name                = %q
-  description         = %q
+  description         = "A test package"
   deletion_protection = false
 }
-`, orgName, envName, pkgName, description)
+`, orgName, envName, pkgName)
 }

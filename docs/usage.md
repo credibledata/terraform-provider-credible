@@ -150,7 +150,8 @@ resource "credible_connection" "warehouse" {
   }
 }
 
-# Package + Version
+# Package + Version -- see the caveat below: neither of these two resources can
+# create or publish today; both are managed after publishing by other means.
 resource "credible_package" "models" {
   organization = credible_organization.main.name
   environment  = credible_environment.analytics.name

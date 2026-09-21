@@ -7,11 +7,15 @@ description: |-
 
 # credible_package (Resource)
 
-Manages a Malloy model package within a Credible environment. Packages contain versioned collections of Malloy models that can be published and shared.
+Manages a Malloy model package that already exists in a Credible environment. Packages contain versioned collections of Malloy models that can be published and shared.
+
+~> **This resource cannot create a package.** A package comes into being by publishing: the Credible Admin API creates the package, its first version and the uploaded model archive in a single operation, and offers none that creates package metadata on its own. Publish the package first -- with `cred publish`, or a multipart `POST /organizations/{org}/environments/{env}/packages/{package}` -- then adopt it with `terraform import` as shown below. An apply that tries to create one fails with a diagnostic saying the same thing.
 
 ## Example Usage
 
-### Create a new package
+### Manage a published package
+
+Import it first (see below), then keep its metadata under management:
 
 ```hcl
 resource "credible_package" "models" {
@@ -21,22 +25,7 @@ resource "credible_package" "models" {
 }
 ```
 
-### Create a package and publish a version
-
-```hcl
-resource "credible_package" "models" {
-  environment = "analytics"
-  name        = "analytics-models"
-  description = "Core analytics Malloy models"
-}
-
-resource "credible_package_version" "v1" {
-  environment  = "analytics"
-  package_name = credible_package.models.name
-  version_id   = "1.0.0"
-  source_dir   = "${path.module}/models"
-}
-```
+`description` and `deletion_protection` are the attributes this resource maintains; `latest_version`, `created_at` and `updated_at` are read from the API.
 
 ### Import an existing package into Terraform
 
