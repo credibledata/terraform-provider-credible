@@ -142,8 +142,17 @@ func (r *PackageResource) Create(ctx context.Context, req resource.CreateRequest
 		"name":        plan.Name.ValueString(),
 	})
 
-	resp.Diagnostics.AddError(
-		"Creating a package is not supported",
+	summary, detail := packageCreateUnsupported(org, plan.Environment.ValueString(), plan.Name.ValueString())
+	resp.Diagnostics.AddError(summary, detail)
+}
+
+// packageCreateUnsupported is the refusal Create raises, as a pure function of the
+// resource's coordinates so it can be asserted without a provider harness -- the
+// framework's test helpers download and run the real Terraform CLI, which is not
+// available in CI and is what let this resource's coverage lapse in the first
+// place.
+func packageCreateUnsupported(org, environment, name string) (summary, detail string) {
+	return "Creating a package is not supported",
 		fmt.Sprintf(
 			"The Credible Admin API creates a package and its first version together, "+
 				"from an uploaded model archive; it has no operation that creates package "+
@@ -152,9 +161,8 @@ func (r *PackageResource) Create(ctx context.Context, req resource.CreateRequest
 				"Publish %[3]q first -- with `cred publish`, or a multipart POST to "+
 				"/organizations/%[1]s/environments/%[2]s/packages/%[3]s -- then adopt it:\n\n"+
 				"  terraform import <address> %[1]s/%[2]s/%[3]s",
-			org, plan.Environment.ValueString(), plan.Name.ValueString(),
-		),
-	)
+			org, environment, name,
+		)
 }
 
 func (r *PackageResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
