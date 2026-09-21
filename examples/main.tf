@@ -98,7 +98,13 @@ resource "credible_environment_permission" "data_team_admin" {
   permission    = "admin"
 }
 
-# 5) Create a package and publish a version
+# 5) Manage a package and its versions
+#
+# NOTE: neither resource below can create/publish against the current Admin API --
+# a package is created by publishing (one multipart POST that carries the version
+# and the model archive), and credible_package_version posts a path the API serves
+# GET only. Publish with `cred publish`, then `terraform import` the package.
+# See docs/resources/package.md and docs/resources/package_version.md.
 
 resource "credible_package" "models" {
   environment = credible_environment.analytics.name

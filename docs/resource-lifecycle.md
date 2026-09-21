@@ -22,8 +22,8 @@ before writing a `terraform destroy` you expect to reclaim something.
 | `credible_organization` | Not usable in practice -- see below | **Removes from state only.** The organization keeps existing | Yes -- `<org>` |
 | `credible_environment` | Creates | Deletes the environment | Yes -- `<org>/<env>` |
 | `credible_connection` | Creates | Deletes the connection | Yes -- `<org>/<env>/<name>` |
-| `credible_package` | Creates | Deletes the package and all its versions | Yes -- `<org>/<env>/<pkg>` |
-| `credible_package_version` | Publishes | **Archives, does not delete.** The version and its artifact survive | No -- not supported |
+| `credible_package` | Not supported -- see below | Deletes the package and all its versions | Yes -- `<org>/<env>/<pkg>` |
+| `credible_package_version` | Not usable -- see below | **Archives, does not delete.** The version and its artifact survive | No -- not supported |
 | `credible_group` | Creates | Deletes the group | Yes -- `<org>/<group>` |
 | `credible_group_member` | Adds a member | Removes the member from the group | Yes -- `<org>/<group>/<user_group_id>` |
 | `credible_organization_permission` | Grants | Revokes | Yes -- `<org>/<user_group_id>` |
@@ -53,6 +53,31 @@ provider-side guards, not API features.
 
 Use it like this: import the organization you were given, manage `display_name`, and
 build everything else underneath it.
+
+## Packages are created by publishing, not by Terraform
+
+A package is its files. The Admin API creates one by **publishing**: a single
+multipart request carries the package, its first version and the model archive
+together, and there is no operation that creates package metadata on its own.
+
+That leaves both package resources unable to create:
+
+- **`credible_package`** has nothing to call, so it refuses at apply time with a
+  diagnostic naming the publish operation and the import that adopts an existing
+  package. It used to POST the collection path, which the API serves `GET` only, so
+  the apply failed with a bare `HTTP 405` after Terraform had already reported the
+  resource as created.
+- **`credible_package_version`** builds the archive correctly but uploads it to
+  `POST .../packages/{package}/versions`, another `GET`-only path, and names its
+  multipart parts `body`/`file` where the API expects
+  `package`/`version`/`packageFile`/`md5Hash`. Publishing through it fails.
+
+So the working shape today is: publish with `cred publish` (or the Admin API
+directly), then `terraform import` the package and manage its metadata,
+`deletion_protection` and permissions from Terraform.
+
+Everything else about these resources works: read, update, delete, import, and
+`archive_status` on a version that already exists.
 
 ## Package versions are archived, not deleted
 

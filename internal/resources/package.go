@@ -126,31 +126,43 @@ func (r *PackageResource) Create(ctx context.Context, req resource.CreateRequest
 		return
 	}
 
-	pkg := &client.Package{
-		Name: plan.Name.ValueString(),
-	}
-	if !plan.Description.IsNull() {
-		pkg.Description = plan.Description.ValueString()
-	}
+	// A package comes into being by publishing: the Admin API's create takes the
+	// package, its first version and the model archive in one multipart request
+	// (POST .../packages/{packageName}). There is no endpoint that creates a
+	// package from metadata alone, so this resource cannot create one.
+	//
+	// It used to POST the collection path, which serves GET only, so every apply
+	// failed with `HTTP 405: Method 'POST' is not supported` -- a bare status
+	// against a URL the practitioner never wrote. Refusing before the request
+	// names the operation that does exist and the import that adopts a package
+	// already published. Read, update, delete and import are unaffected.
+	tflog.Debug(ctx, "Refusing package create", map[string]interface{}{
+		"org":         org,
+		"environment": plan.Environment.ValueString(),
+		"name":        plan.Name.ValueString(),
+	})
 
-	tflog.Debug(ctx, "Creating package", map[string]interface{}{"org": org, "environment": plan.Environment.ValueString(), "name": pkg.Name})
+	summary, detail := packageCreateUnsupported(org, plan.Environment.ValueString(), plan.Name.ValueString())
+	resp.Diagnostics.AddError(summary, detail)
+}
 
-	result, err := r.client.CreatePackage(org, plan.Environment.ValueString(), pkg)
-	if err != nil {
-		resp.Diagnostics.AddError("Error creating package", err.Error())
-		return
-	}
-
-	plan.Organization = types.StringValue(org)
-	plan.Name = types.StringValue(result.Name)
-	if result.Description != "" {
-		plan.Description = types.StringValue(result.Description)
-	}
-	plan.LatestVersion = types.StringValue(result.LatestVersion)
-	plan.CreatedAt = types.StringValue(result.CreatedAt)
-	plan.UpdatedAt = types.StringValue(result.UpdatedAt)
-
-	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
+// packageCreateUnsupported is the refusal Create raises, as a pure function of the
+// resource's coordinates so it can be asserted without a provider harness -- the
+// framework's test helpers download and run the real Terraform CLI, which is not
+// available in CI and is what let this resource's coverage lapse in the first
+// place.
+func packageCreateUnsupported(org, environment, name string) (summary, detail string) {
+	return "Creating a package is not supported",
+		fmt.Sprintf(
+			"The Credible Admin API creates a package and its first version together, "+
+				"from an uploaded model archive; it has no operation that creates package "+
+				"metadata on its own. This resource therefore manages packages that already "+
+				"exist rather than creating them.\n\n"+
+				"Publish %[3]q first -- with `cred publish`, or a multipart POST to "+
+				"/organizations/%[1]s/environments/%[2]s/packages/%[3]s -- then adopt it:\n\n"+
+				"  terraform import <address> %[1]s/%[2]s/%[3]s",
+			org, environment, name,
+		)
 }
 
 func (r *PackageResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
