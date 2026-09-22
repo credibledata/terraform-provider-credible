@@ -158,8 +158,10 @@ func packageCreateUnsupported(org, environment, name string) (summary, detail st
 				"from an uploaded model archive; it has no operation that creates package "+
 				"metadata on its own. This resource therefore manages packages that already "+
 				"exist rather than creating them.\n\n"+
-				"Publish %[3]q first -- with `cred publish`, or a multipart POST to "+
-				"/organizations/%[1]s/environments/%[2]s/packages/%[3]s -- then adopt it:\n\n"+
+				"To create %[3]q from Terraform, publish it with a credible_package_version "+
+				"resource, which creates the package it names.\n\n"+
+				"To adopt a %[3]q published elsewhere -- with `cred publish`, or a multipart "+
+				"POST to /organizations/%[1]s/environments/%[2]s/packages/%[3]s -- import it:\n\n"+
 				"  terraform import <address> %[1]s/%[2]s/%[3]s",
 			org, environment, name,
 		)

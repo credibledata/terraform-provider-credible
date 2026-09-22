@@ -9,7 +9,7 @@ description: |-
 
 Manages a Malloy model package that already exists in a Credible environment. Packages contain versioned collections of Malloy models that can be published and shared.
 
-~> **This resource cannot create a package.** A package comes into being by publishing: the Credible Admin API creates the package, its first version and the uploaded model archive in a single operation, and offers none that creates package metadata on its own. Publish the package first -- with `cred publish`, or a multipart `POST /organizations/{org}/environments/{env}/packages/{package}` -- then adopt it with `terraform import` as shown below. An apply that tries to create one fails with a diagnostic saying the same thing.
+~> **This resource cannot create a package.** A package comes into being by publishing: the Credible Admin API creates the package, its first version and the uploaded model archive in a single operation, and offers none that creates package metadata on its own. To create one from Terraform, use [`credible_package_version`](package_version.md), which publishes. To adopt a package published elsewhere -- by `cred publish` or the Admin API -- `terraform import` it as shown below, then manage its metadata here. An apply that tries to create one fails with a diagnostic saying the same thing.
 
 ## Example Usage
 
@@ -66,7 +66,7 @@ terraform import credible_package.models my-org/analytics/analytics-models
 
 ### Read-Only
 
-- `latest_version` (String) — The most recently published version identifier.
+- `latest_version` (String) — The currently promoted version identifier. This lags a publish that is still building, so it is not necessarily the most recently published version.
 - `created_at` (String) — ISO 8601 creation timestamp.
 - `updated_at` (String) — ISO 8601 last-update timestamp.
 

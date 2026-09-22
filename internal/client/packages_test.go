@@ -1,10 +1,15 @@
 package client
 
 import (
+	"bytes"
+	"crypto/md5"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -145,7 +150,7 @@ func TestGetVersion(t *testing.T) {
 		json.NewEncoder(w).Encode(Version{
 			ID:            "1.0.0",
 			ArchiveStatus: "unarchive",
-			IndexStatus:   "complete",
+			BuildStatus:   "READY",
 			CreatedAt:     "2025-01-01T00:00:00Z",
 			UpdatedAt:     "2025-01-01T00:00:00Z",
 		})
@@ -177,7 +182,7 @@ func TestUpdateVersion(t *testing.T) {
 		json.NewEncoder(w).Encode(Version{
 			ID:            "1.0.0",
 			ArchiveStatus: "archive",
-			IndexStatus:   "complete",
+			BuildStatus:   "READY",
 			CreatedAt:     "2025-01-01T00:00:00Z",
 			UpdatedAt:     "2025-01-02T00:00:00Z",
 		})
@@ -194,34 +199,153 @@ func TestUpdateVersion(t *testing.T) {
 	}
 }
 
-func TestCreateVersion(t *testing.T) {
+// Pins the publish contract that was verified against a live control plane: the
+// package's own path (not .../versions, which the API serves GET only), the four
+// part names the API requires, md5Hash computed from the bytes actually sent, and
+// a Package -- not a Version -- decoded from the response.
+func TestPublishPackageVersion(t *testing.T) {
+	archive := []byte("fake archive data")
+	wantHash := fmt.Sprintf("%x", md5.Sum(archive))
+
+	var (
+		gotMethod string
+		gotPath   string
+		gotParts  map[string]string
+		gotFile   []byte
+		gotTypes  map[string]string
+	)
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "POST" {
-			t.Errorf("expected POST, got %s", r.Method)
+		gotMethod = r.Method
+		gotPath = r.URL.Path
+		gotParts = map[string]string{}
+		gotTypes = map[string]string{}
+
+		reader, err := r.MultipartReader()
+		if err != nil {
+			t.Errorf("expected a multipart body: %v", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
 		}
-		if r.URL.Path != "/api/v0/organizations/my-org/environments/my-proj/packages/my-pkg/versions" {
-			t.Errorf("unexpected path: %s", r.URL.Path)
+		for {
+			part, err := reader.NextPart()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				t.Errorf("reading multipart body: %v", err)
+				break
+			}
+			body, err := io.ReadAll(part)
+			if err != nil {
+				t.Errorf("reading part %q: %v", part.FormName(), err)
+			}
+			if part.FormName() == "packageFile" {
+				gotFile = body
+			} else {
+				gotParts[part.FormName()] = string(body)
+			}
+			gotTypes[part.FormName()] = part.Header.Get("Content-Type")
 		}
 
-		// Verify it's multipart
-		ct := r.Header.Get("Content-Type")
-		if ct == "" {
-			t.Error("expected Content-Type header")
-		}
-
-		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(Version{
-			ID:            "1.0.0",
-			ArchiveStatus: "unarchive",
-			IndexStatus:   "pending",
-			CreatedAt:     "2025-01-01T00:00:00Z",
-			UpdatedAt:     "2025-01-01T00:00:00Z",
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(Package{
+			Name:          "my-pkg",
+			Description:   "a package",
+			LatestVersion: "1.0.0",
 		})
 	}))
 	defer server.Close()
 
-	// Create a temp file to upload
-	tmpFile, err := os.CreateTemp("", "test-pkg-*.tar.gz")
+	tmpFile, err := os.CreateTemp("", "test-pkg-*.zip")
+	if err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+	if _, err := tmpFile.Write(archive); err != nil {
+		t.Fatalf("failed to write temp file: %v", err)
+	}
+	tmpFile.Close()
+
+	c := NewClient(server.URL, "ApiKey k", "org")
+	result, err := c.PublishPackageVersion("my-org", "my-proj", "my-pkg", "a package",
+		&Version{ID: "1.0.0"}, tmpFile.Name())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if gotMethod != "POST" {
+		t.Errorf("expected POST, got %s", gotMethod)
+	}
+	// The package's own path. Posting to .../versions is what returned 405.
+	if want := "/api/v0/organizations/my-org/environments/my-proj/packages/my-pkg"; gotPath != want {
+		t.Errorf("expected path %q, got %q", want, gotPath)
+	}
+
+	for _, name := range []string{"package", "version", "md5Hash"} {
+		if _, ok := gotParts[name]; !ok {
+			t.Errorf("missing required part %q; got parts %v", name, gotParts)
+		}
+	}
+	if gotFile == nil {
+		t.Error("missing required part \"packageFile\"")
+	}
+
+	// The API parses these as JSON and rejects text/plain.
+	for _, name := range []string{"package", "version"} {
+		if got := gotTypes[name]; got != "application/json" {
+			t.Errorf("expected part %q to be application/json, got %q", name, got)
+		}
+	}
+
+	// The package part carries the name and description -- omitting it fails with
+	// "Create package request must have a Package JSON".
+	var sentPackage Package
+	if err := json.Unmarshal([]byte(gotParts["package"]), &sentPackage); err != nil {
+		t.Fatalf("package part is not valid JSON: %v", err)
+	}
+	if sentPackage.Name != "my-pkg" {
+		t.Errorf("expected package name %q, got %q", "my-pkg", sentPackage.Name)
+	}
+	if sentPackage.Description != "a package" {
+		t.Errorf("expected package description %q, got %q", "a package", sentPackage.Description)
+	}
+
+	var sentVersion Version
+	if err := json.Unmarshal([]byte(gotParts["version"]), &sentVersion); err != nil {
+		t.Fatalf("version part is not valid JSON: %v", err)
+	}
+	if sentVersion.ID != "1.0.0" {
+		t.Errorf("expected version id %q, got %q", "1.0.0", sentVersion.ID)
+	}
+
+	// The hash must describe the uploaded bytes; the API verifies it.
+	if gotParts["md5Hash"] != wantHash {
+		t.Errorf("expected md5Hash %q, got %q", wantHash, gotParts["md5Hash"])
+	}
+	if !bytes.Equal(gotFile, archive) {
+		t.Errorf("uploaded bytes differ from the source archive")
+	}
+
+	// The response is the package, and its latestVersion is what was published.
+	if result.LatestVersion != "1.0.0" {
+		t.Errorf("expected latestVersion %q, got %q", "1.0.0", result.LatestVersion)
+	}
+	if result.Name != "my-pkg" {
+		t.Errorf("expected name %q, got %q", "my-pkg", result.Name)
+	}
+}
+
+// A publish failure must surface the API's message rather than being reported as
+// a success with empty state.
+func TestPublishPackageVersionSurfacesAPIError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusFailedDependency)
+		json.NewEncoder(w).Encode(APIError{Message: "Package failed to compile."})
+	}))
+	defer server.Close()
+
+	tmpFile, err := os.CreateTemp("", "test-pkg-*.zip")
 	if err != nil {
 		t.Fatalf("failed to create temp file: %v", err)
 	}
@@ -230,11 +354,14 @@ func TestCreateVersion(t *testing.T) {
 	tmpFile.Close()
 
 	c := NewClient(server.URL, "ApiKey k", "org")
-	result, err := c.CreateVersion("my-org", "my-proj", "my-pkg", &Version{ID: "1.0.0"}, tmpFile.Name())
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	_, err = c.PublishPackageVersion("my-org", "my-proj", "my-pkg", "", &Version{ID: "1.0.0"}, tmpFile.Name())
+	if err == nil {
+		t.Fatal("expected an error, got nil")
 	}
-	if result.ID != "1.0.0" {
-		t.Errorf("expected ID %q, got %q", "1.0.0", result.ID)
+	if !strings.Contains(err.Error(), "Package failed to compile.") {
+		t.Errorf("expected the API message in the error, got %q", err.Error())
+	}
+	if !strings.Contains(err.Error(), "424") {
+		t.Errorf("expected the status code in the error, got %q", err.Error())
 	}
 }

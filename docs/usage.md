@@ -52,8 +52,8 @@ export CREDIBLE_API_KEY="your-api-key"
 | `credible_environment_permission` | Environment-level user/group permissions (admin, modeler, viewer) |
 | `credible_group` | Manage groups within an organization |
 | `credible_group_member` | Manage group membership |
-| `credible_package` | Manage Malloy model packages |
-| `credible_package_version` | Publish immutable package versions |
+| `credible_package` | Manage the metadata of an existing Malloy model package |
+| `credible_package_version` | Publish immutable package versions -- also how a package is created |
 
 ---
 
@@ -87,7 +87,7 @@ terraform import <resource_type>.<name> <import_id>
 | `credible_group` | `<org>/<group>` | `terraform import credible_group.eng my-org/data-engineering` |
 | `credible_group_member` | `<org>/<group>/<user_group_id>` | `terraform import credible_group_member.alice my-org/data-engineering/user:alice@example.com` |
 | `credible_package` | `<org>/<environment>/<package>` | `terraform import credible_package.models my-org/analytics/analytics-models` |
-| `credible_package_version` | N/A | Versions are immutable — recreate in Terraform instead |
+| `credible_package_version` | N/A | Not importable — `source_dir`/`source_file` are local paths the API cannot return |
 
 ### Step 3: Reconcile state
 
@@ -150,18 +150,13 @@ resource "credible_connection" "warehouse" {
   }
 }
 
-# Package + Version -- see the caveat below: neither of these two resources can
-# create or publish today; both are managed after publishing by other means.
-resource "credible_package" "models" {
-  organization = credible_organization.main.name
-  environment  = credible_environment.analytics.name
-  name         = "analytics-models"
-}
-
+# Package -- publishing a version is what creates the package, so there is no
+# credible_package resource here. Use credible_package to manage the metadata of a
+# package that already exists.
 resource "credible_package_version" "v1" {
   organization = credible_organization.main.name
   environment  = credible_environment.analytics.name
-  package_name = credible_package.models.name
+  package_name = "analytics-models"
   version_id   = "1.0.0"
   source_dir   = "${path.module}/models"
 }

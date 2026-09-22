@@ -23,7 +23,7 @@ before writing a `terraform destroy` you expect to reclaim something.
 | `credible_environment` | Creates | Deletes the environment | Yes -- `<org>/<env>` |
 | `credible_connection` | Creates | Deletes the connection | Yes -- `<org>/<env>/<name>` |
 | `credible_package` | Not supported -- see below | Deletes the package and all its versions | Yes -- `<org>/<env>/<pkg>` |
-| `credible_package_version` | Not usable -- see below | **Archives, does not delete.** The version and its artifact survive | No -- not supported |
+| `credible_package_version` | **Publishes**, creating the package if needed | **Archives, does not delete.** The version and its artifact survive | No -- not supported |
 | `credible_group` | Creates | Deletes the group | Yes -- `<org>/<group>` |
 | `credible_group_member` | Adds a member | Removes the member from the group | Yes -- `<org>/<group>/<user_group_id>` |
 | `credible_organization_permission` | Grants | Revokes | Yes -- `<org>/<user_group_id>` |
@@ -54,30 +54,27 @@ provider-side guards, not API features.
 Use it like this: import the organization you were given, manage `display_name`, and
 build everything else underneath it.
 
-## Packages are created by publishing, not by Terraform
+## Packages are created by publishing, not by metadata
 
 A package is its files. The Admin API creates one by **publishing**: a single
 multipart request carries the package, its first version and the model archive
 together, and there is no operation that creates package metadata on its own.
 
-That leaves both package resources unable to create:
+That splits the two package resources:
 
-- **`credible_package`** has nothing to call, so it refuses at apply time with a
-  diagnostic naming the publish operation and the import that adopts an existing
-  package. It used to POST the collection path, which the API serves `GET` only, so
-  the apply failed with a bare `HTTP 405` after Terraform had already reported the
-  resource as created.
-- **`credible_package_version`** builds the archive correctly but uploads it to
-  `POST .../packages/{package}/versions`, another `GET`-only path, and names its
-  multipart parts `body`/`file` where the API expects
-  `package`/`version`/`packageFile`/`md5Hash`. Publishing through it fails.
+- **`credible_package_version` publishes**, and so is the resource that creates a
+  package. It needs no `credible_package` alongside it: a publish to a name that
+  does not exist yet creates the package, and one to a name that does adds a
+  version. The archive must be a **zip** -- the API reads its bytes, so another
+  format is rejected whatever the file is named.
+- **`credible_package`** has no create to call, so it refuses at apply time with a
+  diagnostic naming the publish and the import that adopts an existing package. Use
+  it to manage the metadata, `deletion_protection` and permissions of a package that
+  already exists.
 
-So the working shape today is: publish with `cred publish` (or the Admin API
-directly), then `terraform import` the package and manage its metadata,
-`deletion_protection` and permissions from Terraform.
-
-Everything else about these resources works: read, update, delete, import, and
-`archive_status` on a version that already exists.
+So a package either enters Terraform by being published through
+`credible_package_version`, or -- if it was published by `cred publish` or the Admin
+API -- by `terraform import` onto a `credible_package`.
 
 ## Package versions are archived, not deleted
 
@@ -89,10 +86,10 @@ uploaded artifact and its index all remain on the server; only the archive flag
 flips. Terraform then drops it from state.
 
 Because the source attributes force replacement, changing package contents runs that
-archive and then re-publishes **the same `version_id`**. If the API refuses to
-re-publish an id that already exists, the destroy half succeeds and the create half
-fails, leaving you with no state and an archived version. Publish a new `version_id`
-for new content rather than editing a published one in place.
+archive and then re-publishes **the same `version_id`** -- which the API rejects with
+`409 VersionId already exists in package`. The destroy half succeeds and the create
+half fails, leaving no state and an archived version. Publish a new `version_id` for
+new content rather than editing a published one in place.
 
 `credible_package_version` also does not support `terraform import`.
 

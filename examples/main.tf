@@ -98,33 +98,30 @@ resource "credible_environment_permission" "data_team_admin" {
   permission    = "admin"
 }
 
-# 5) Manage a package and its versions
+# 5) Publish a package, and manage an existing one
 #
-# NOTE: neither resource below can create/publish against the current Admin API --
-# a package is created by publishing (one multipart POST that carries the version
-# and the model archive), and credible_package_version posts a path the API serves
-# GET only. Publish with `cred publish`, then `terraform import` the package.
+# Publishing is what creates a package: one multipart POST carries the package, the
+# version and the model archive together. So credible_package_version stands alone
+# below -- no credible_package resource is needed to create it. Use credible_package
+# to manage the metadata of a package that already exists (import it if it was
+# published by `cred publish` or the Admin API); it cannot create one.
 # See docs/resources/package.md and docs/resources/package_version.md.
 
-resource "credible_package" "models" {
-  environment = credible_environment.analytics.name
-  name        = "analytics-models"
-  description = "Core analytics Malloy models"
-}
-
-# Option A: Publish from a local directory (provider creates the .tar.gz)
+# Option A: Publish from a local directory (the provider zips it)
 resource "credible_package_version" "v1" {
   environment  = credible_environment.analytics.name
-  package_name = credible_package.models.name
+  package_name = "analytics-models"
   version_id   = "1.0.0"
+  description  = "Core analytics Malloy models"
   source_dir   = "${path.module}/models/analytics"
 }
 
-# Option B: Publish from a pre-built archive
+# Option B: Publish from a pre-built zip. The API reads the archive's bytes, so it
+# must be a zip -- a .tar.gz is rejected whatever the file is named.
 # resource "credible_package_version" "v1_archive" {
 #   environment  = credible_environment.analytics.name
-#   package_name = credible_package.models.name
+#   package_name = "analytics-models"
 #   version_id   = "1.0.0"
-#   source_file  = "${path.module}/dist/analytics-models.tar.gz"
-#   source_hash  = filemd5("${path.module}/dist/analytics-models.tar.gz")
+#   source_file  = "${path.module}/dist/analytics-models.zip"
+#   source_hash  = filemd5("${path.module}/dist/analytics-models.zip")
 # }

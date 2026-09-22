@@ -1,8 +1,7 @@
 package resources
 
 import (
-	"archive/tar"
-	"compress/gzip"
+	"archive/zip"
 	"context"
 	"fmt"
 	"github.com/credibledata/terraform-provider-credible/internal/client"
@@ -34,8 +33,9 @@ type PackageVersionResourceModel struct {
 	SourceDir     types.String `tfsdk:"source_dir"`
 	SourceFile    types.String `tfsdk:"source_file"`
 	SourceHash    types.String `tfsdk:"source_hash"`
+	Description   types.String `tfsdk:"description"`
 	ArchiveStatus types.String `tfsdk:"archive_status"`
-	IndexStatus   types.String `tfsdk:"index_status"`
+	BuildStatus   types.String `tfsdk:"build_status"`
 	CreatedAt     types.String `tfsdk:"created_at"`
 	UpdatedAt     types.String `tfsdk:"updated_at"`
 }
@@ -50,7 +50,7 @@ func (r *PackageVersionResource) Metadata(_ context.Context, req resource.Metada
 
 func (r *PackageVersionResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Publishes a version of a Credible package. Supports uploading from a local directory or pre-built archive.",
+		Description: "Publishes a version of a Credible package, which is also how a package is created -- the Admin API has no metadata-only create. Uploads either a local directory or a pre-built zip archive.",
 		Attributes: map[string]schema.Attribute{
 			"organization": schema.StringAttribute{
 				Description: "The organization name. Defaults to the provider's organization.",
@@ -83,7 +83,7 @@ func (r *PackageVersionResource) Schema(_ context.Context, _ resource.SchemaRequ
 				},
 			},
 			"source_dir": schema.StringAttribute{
-				Description: "Path to a local directory. The provider will create a .tar.gz archive from its contents.",
+				Description: "Path to a local directory. The provider zips its contents for upload.",
 				Optional:    true,
 				Validators: []validator.String{
 					stringvalidator.ConflictsWith(path.MatchRoot("source_file")),
@@ -93,7 +93,7 @@ func (r *PackageVersionResource) Schema(_ context.Context, _ resource.SchemaRequ
 				},
 			},
 			"source_file": schema.StringAttribute{
-				Description: "Path to a pre-built .tar.gz archive.",
+				Description: "Path to a pre-built .zip archive. The API rejects other archive formats.",
 				Optional:    true,
 				Validators: []validator.String{
 					stringvalidator.ConflictsWith(path.MatchRoot("source_dir")),
@@ -109,13 +109,27 @@ func (r *PackageVersionResource) Schema(_ context.Context, _ resource.SchemaRequ
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
+			// Config-only, like source_hash: it is sent by the publish and never
+			// read back, so it carries no plan modifier. Deliberately not
+			// RequiresReplace -- a replace would archive this version and re-publish
+			// the same version_id, which the API rejects with a 409, leaving no state
+			// and an archived version. An edit is therefore absorbed by Update
+			// without an API call, which matches the API: a package PATCH ignores
+			// description.
+			"description": schema.StringAttribute{
+				Description: "Description applied to the package by this publish. Publishing is the only " +
+					"operation that creates a package, so the description travels with the version. It " +
+					"describes the package, not the version, and is only ever sent by the publish: editing " +
+					"it later changes Terraform state without changing the package.",
+				Optional: true,
+			},
 			"archive_status": schema.StringAttribute{
 				Description: "Archive status: 'unarchive' (active) or 'archive' (archived).",
 				Optional:    true,
 				Computed:    true,
 			},
-			"index_status": schema.StringAttribute{
-				Description: "Current indexing status of the version.",
+			"build_status": schema.StringAttribute{
+				Description: "Build status of the version, e.g. READY.",
 				Computed:    true,
 			},
 			"created_at": schema.StringAttribute{
@@ -149,19 +163,17 @@ func (r *PackageVersionResource) getOrg(model *PackageVersionResourceModel) stri
 	return r.client.Organization
 }
 
-// createArchiveFromDir creates a tar.gz archive from a directory and returns the temp file path.
+// createArchiveFromDir zips a directory's contents and returns the temp file path.
+// It must be a zip: the API reads the archive's bytes and rejects a tar.gz with a
+// 500 regardless of the content type it is declared as.
 func createArchiveFromDir(srcDir string) (string, error) {
-	tmpFile, err := os.CreateTemp("", "credible-pkg-*.tar.gz")
+	tmpFile, err := os.CreateTemp("", "credible-pkg-*.zip")
 	if err != nil {
 		return "", fmt.Errorf("creating temp file: %w", err)
 	}
 	defer tmpFile.Close()
 
-	gzWriter := gzip.NewWriter(tmpFile)
-	defer gzWriter.Close()
-
-	tarWriter := tar.NewWriter(gzWriter)
-	defer tarWriter.Close()
+	zipWriter := zip.NewWriter(tmpFile)
 
 	srcDir = filepath.Clean(srcDir)
 
@@ -170,22 +182,31 @@ func createArchiveFromDir(srcDir string) (string, error) {
 			return err
 		}
 
-		header, err := tar.FileInfoHeader(info, "")
-		if err != nil {
-			return fmt.Errorf("creating tar header for %s: %w", filePath, err)
-		}
-
-		// Use relative path within the archive
+		// Paths in the archive are relative to srcDir, so the package's files sit
+		// at the archive root rather than under a copy of the local directory tree.
 		relPath, err := filepath.Rel(srcDir, filePath)
 		if err != nil {
 			return fmt.Errorf("computing relative path: %w", err)
 		}
-		header.Name = relPath
-
-		if err := tarWriter.WriteHeader(header); err != nil {
-			return fmt.Errorf("writing tar header: %w", err)
+		if relPath == "." {
+			return nil
 		}
 
+		header, err := zip.FileInfoHeader(info)
+		if err != nil {
+			return fmt.Errorf("creating zip header for %s: %w", filePath, err)
+		}
+		header.Name = filepath.ToSlash(relPath)
+		if info.IsDir() {
+			header.Name += "/"
+		} else {
+			header.Method = zip.Deflate
+		}
+
+		writer, err := zipWriter.CreateHeader(header)
+		if err != nil {
+			return fmt.Errorf("writing zip header for %s: %w", filePath, err)
+		}
 		if info.IsDir() {
 			return nil
 		}
@@ -196,16 +217,22 @@ func createArchiveFromDir(srcDir string) (string, error) {
 		}
 		defer file.Close()
 
-		if _, err := io.Copy(tarWriter, file); err != nil {
-			return fmt.Errorf("writing file %s to tar: %w", filePath, err)
+		if _, err := io.Copy(writer, file); err != nil {
+			return fmt.Errorf("writing file %s to zip: %w", filePath, err)
 		}
 
 		return nil
 	})
 
 	if err != nil {
+		zipWriter.Close()
 		os.Remove(tmpFile.Name())
 		return "", fmt.Errorf("walking source directory: %w", err)
+	}
+
+	if err := zipWriter.Close(); err != nil {
+		os.Remove(tmpFile.Name())
+		return "", fmt.Errorf("finalizing zip archive: %w", err)
 	}
 
 	return tmpFile.Name(), nil
@@ -253,23 +280,33 @@ func (r *PackageVersionResource) Create(ctx context.Context, req resource.Create
 		ID: plan.VersionID.ValueString(),
 	}
 
-	tflog.Debug(ctx, "Creating package version", map[string]interface{}{
+	tflog.Debug(ctx, "Publishing package version", map[string]interface{}{
 		"org": org, "environment": plan.Environment.ValueString(),
 		"package": plan.PackageName.ValueString(), "version": version.ID,
 	})
 
-	result, err := r.client.CreateVersion(org, plan.Environment.ValueString(), plan.PackageName.ValueString(), version, uploadPath)
+	if _, err := r.client.PublishPackageVersion(org, plan.Environment.ValueString(), plan.PackageName.ValueString(),
+		plan.Description.ValueString(), version, uploadPath); err != nil {
+		resp.Diagnostics.AddError("Error publishing package version", err.Error())
+		return
+	}
+
+	// The publish returns the package, so the version's own fields come from a
+	// read-back. It reads the version that was just requested rather than the
+	// package's latestVersion, which names the currently *promoted* version and
+	// so still points at an older version while this one is building.
+	published, err := r.client.GetVersion(org, plan.Environment.ValueString(), plan.PackageName.ValueString(), version.ID)
 	if err != nil {
-		resp.Diagnostics.AddError("Error creating package version", err.Error())
+		resp.Diagnostics.AddError("Error reading published package version", err.Error())
 		return
 	}
 
 	plan.Organization = types.StringValue(org)
-	plan.VersionID = types.StringValue(result.ID)
-	plan.ArchiveStatus = types.StringValue(result.ArchiveStatus)
-	plan.IndexStatus = types.StringValue(result.IndexStatus)
-	plan.CreatedAt = types.StringValue(result.CreatedAt)
-	plan.UpdatedAt = types.StringValue(result.UpdatedAt)
+	plan.VersionID = types.StringValue(published.ID)
+	plan.ArchiveStatus = types.StringValue(published.ArchiveStatus)
+	plan.BuildStatus = types.StringValue(published.BuildStatus)
+	plan.CreatedAt = types.StringValue(published.CreatedAt)
+	plan.UpdatedAt = types.StringValue(published.UpdatedAt)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
@@ -295,7 +332,7 @@ func (r *PackageVersionResource) Read(ctx context.Context, req resource.ReadRequ
 	state.Organization = types.StringValue(org)
 	state.VersionID = types.StringValue(result.ID)
 	state.ArchiveStatus = types.StringValue(result.ArchiveStatus)
-	state.IndexStatus = types.StringValue(result.IndexStatus)
+	state.BuildStatus = types.StringValue(result.BuildStatus)
 	state.CreatedAt = types.StringValue(result.CreatedAt)
 	state.UpdatedAt = types.StringValue(result.UpdatedAt)
 
@@ -324,12 +361,14 @@ func (r *PackageVersionResource) Update(ctx context.Context, req resource.Update
 		}
 
 		plan.ArchiveStatus = types.StringValue(result.ArchiveStatus)
-		plan.IndexStatus = types.StringValue(result.IndexStatus)
+		plan.BuildStatus = types.StringValue(result.BuildStatus)
 		plan.UpdatedAt = types.StringValue(result.UpdatedAt)
 	}
 
 	plan.Organization = types.StringValue(org)
 
+	// description needs no request: it belongs to the package and the API ignores
+	// it in a package PATCH, so the planned value is taken into state as-is.
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
