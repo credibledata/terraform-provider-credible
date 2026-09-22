@@ -24,11 +24,14 @@ func TestPackageCreateUnsupported(t *testing.T) {
 	}
 
 	// Each of these is the part that makes the refusal actionable: what the API
-	// does instead, the exact path that serves it, and the import that adopts a
-	// package already published. A message that drops any of them sends the
-	// practitioner back to guessing.
+	// does instead, the resource that does create a package, the exact path that
+	// serves it, and the import that adopts a package already published. A message
+	// that drops any of them sends the practitioner back to guessing -- naming
+	// credible_package_version particularly, since it is the route that keeps the
+	// practitioner in Terraform rather than sending them to another tool.
 	for _, want := range []string{
 		"creates a package and its first version together",
+		"credible_package_version",
 		"/organizations/my-org/environments/analytics/packages/analytics-models",
 		"terraform import <address> my-org/analytics/analytics-models",
 		"cred publish",
